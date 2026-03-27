@@ -33,7 +33,7 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - uses: hendrikmuhs/ccache-action@1bbbcda0748b3e340dee71a314fa68ffcbd6df79 # v1.2.21
+      - uses: hendrikmuhs/ccache-action@33522472633dbd32578e909b315f5ee43ba878ce # v1.2.22
         with:
           key: ${{ github.job }}-ubuntu-latest
           max-size: 2G
@@ -72,7 +72,7 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - uses: hendrikmuhs/ccache-action@1bbbcda0748b3e340dee71a314fa68ffcbd6df79 # v1.2.21
+      - uses: hendrikmuhs/ccache-action@33522472633dbd32578e909b315f5ee43ba878ce # v1.2.22
         with:
           key: ${{ github.job }}-${{ matrix.os }}
           max-size: 2G
@@ -117,7 +117,7 @@ jobs:
         with:
           release: ${{ matrix.gcc }}
       - run: sudo apt-get update && sudo apt-get install ninja-build xsltproc
-      - uses: hendrikmuhs/ccache-action@1bbbcda0748b3e340dee71a314fa68ffcbd6df79 # v1.2.21
+      - uses: hendrikmuhs/ccache-action@33522472633dbd32578e909b315f5ee43ba878ce # v1.2.22
         with:
           key: ${{ matrix.gcc }}-${{ matrix.configuration }}-${{ matrix.target }}
           max-size: 2G
