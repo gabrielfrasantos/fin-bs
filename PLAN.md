@@ -1,0 +1,458 @@
+# Options Income & Compounding Strategy Estimator (C++)
+
+A C++ project for estimating and planning a **covered call / cash-secured put "wheel"** style
+options-income strategy that **reinvests premiums over time (compounding)**, built on top of the
+[`embedded-pro/numerical-toolbox-cpp`](https://github.com/embedded-pro/numerical-toolbox-cpp)
+numerical library, with **Dutch (Netherlands) taxation** and **DEGIRO** cost modeling baked in.
+
+> ⚠️ **Not financial or tax advice.** This is a modeling/estimation tool. All tax logic must be
+> validated against current Belastingdienst rules for your tax year before use.
+
+---
+
+## 0. Clarifications & Assumptions (read this first)
+
+Everything below is an **explicit assumption** so nothing is hidden. Adjust in `config/` before building.
+
+### 0.1 What "cover sell" means here
+I'm interpreting *"cover sell for options"* as **covered calls** (selling call options against 100
+shares you own) and — since you want to *increase investment over time* — the full **Wheel strategy**:
+
+1. Sell **cash-secured puts** → collect premium; if assigned, you buy 100 shares.
+2. Once you own shares, sell **covered calls** → collect premium; if assigned, you sell the shares.
+3. **Reinvest** all net premiums + capital into more contracts (compounding).
+
+If you actually meant something else (e.g. naked options, spreads, LEAPS), flag it — the engine is
+modular enough to extend, but the initial scope is **Wheel = CSP + Covered Call only**.
+
+### 0.2 The library reality check (IMPORTANT)
+`numerical-toolbox-cpp` is an **embedded DSP / control / estimation** library. It has **no built-in
+options pricing, no Black–Scholes, no finance primitives**. What it *does* give us that's directly
+useful:
+
+| Need in this project | Library component we'll use |
+|---|---|
+| Fit implied volatility / drift from historical prices | `Estimators → Linear/Polynomial Regression`, `Total Least Squares` |
+| Online volatility / return tracking from a price stream | `Estimators → Recursive Least Squares`, `Filters → Kalman / EMA` |
+| Smooth noisy price series before estimation | `Filters → Exponential Moving Average`, `FIR/IIR` |
+| Optimize contract count / strike selection to a target | `Optimization → Gradient Descent`, `Regularization → L1/L2` |
+| Numerical CDF (Φ) for Black–Scholes via `Erfc` | `math::Erfc` (already in the library) |
+| Monte-Carlo path integration of price SDE | `Solvers → Runge-Kutta integrators` |
+| Matrix/linear algebra for the fits | `Solvers → Cholesky, Gaussian Elimination, SVD` |
+
+Concrete toolbox entry points we will link against (verified against the pinned `v3.0.0` tree):
+`numerical.math` (`numerical/math/Math.hpp` → `math::Erfc`, `Matrix.hpp`, `Statistics.hpp`),
+`numerical.estimators` (`estimators/offline/LinearRegression.hpp`, `TotalLeastSquares.hpp`,
+`estimators/online/RecursiveLeastSquares.hpp`), `numerical.filters`,
+`numerical.solver` (`solvers/RungeKuttaIntegrators.hpp`, `DormandPrince45.hpp`, `OdeSystem.hpp`),
+`numerical.optimization` (`optimization/GradientDescent.hpp`, `ObjectiveFunction.hpp`) and
+`numerical.regularization`.
+
+**Everything finance-specific (option pricing, Greeks, assignment logic, tax, DEGIRO fees) we build
+ourselves** as a new library layer *on top* of the toolbox. This plan makes that split explicit.
+
+### 0.3 Environment & tooling assumptions
+- **Language/standard:** C++20, CMake ≥ 3.24, GoogleTest (matches the toolbox's conventions).
+- **Dependency wiring:** `numerical-toolbox-cpp` is vendored as a **git submodule** at
+  `numerical-toolbox/` (pinned to `v3.0.0`) and consumed with `add_subdirectory`. Because the
+  toolbox only `FetchContent`s `embedded-infra-lib` (emil) when it is the *top-level* project, this
+  repo must provide `emil` itself — it is fetched at the same pin the toolbox uses. Clone with
+  `git clone --recursive`, or run `git submodule update --init --recursive`.
+- **`float`-only** numeric type initially (the toolbox roadmap is float-only). We may promote to
+  `double` for money math — see §6.4 (money precision risk).
+- **Platform:** desktop Linux/macOS/Windows (host build), *not* an MCU — so the toolbox's `no-heap`
+  constraint is relaxed for our layer, but we'll still prefer bounded containers where cheap.
+- **JSON/CSV:** parsing uses emil's `infra/syntax/Json.hpp` (already on the dependency graph) — no
+  new third-party parser is introduced.
+- **Data:** you provide historical price CSVs and an options chain snapshot (CSV/JSON). **No live
+  broker API integration in v1** — DEGIRO has no official retail API. See §7.
+- **Currency:** EUR base. If trading USD-denominated underlyings (e.g. US ETFs), FX is modeled.
+
+### 0.4 Tax assumptions (Netherlands) — must be confirmed per tax year
+- Private retail investor (natuurlijk persoon), **not** a business (`resultaat uit overige
+  werkzaamheden` / self-employment is out of scope).
+- Investments are taxed under **Box 3 (belastbaar inkomen uit sparen en beleggen)** — a *wealth/
+  deemed-return* tax on the value of assets on the reference date (1 January, "peildatum"), **not** a
+  capital-gains tax on realized profit. This is the single most important modeling difference vs. a
+  US-style tool.
+- Consequences we model:
+  - **Premiums and capital gains are generally not individually taxed** as income in Box 3; instead
+    the **portfolio value** drives a deemed return that is taxed.
+  - The engine therefore computes **net-of-cost pre-tax returns** *and* a separate **Box 3 tax
+    drag** on year-end asset value, with configurable `heffingvrij vermogen` (tax-free allowance),
+    `forfaitair rendement` percentages, and the Box 3 tax rate.
+- **Configurable, versioned tax parameters** (`config/tax/nl_<year>.json`) because the Netherlands
+  is actively reforming Box 3 (transition to actual-return basis). **Do not hardcode rates.**
+- Dividend withholding tax (dividendbelasting, 15%) on shares held is modeled as a credit/leakage.
+- ⚠️ A validation checkpoint (§9) requires confirming the active-year rules with an authoritative
+  source before trusting outputs.
+
+### 0.5 DEGIRO cost assumptions
+- Model **per-trade commissions/fees** for options and shares from a `config/broker/degiro.json`
+  fee schedule (options handling fee per contract, exchange connectivity fee, share transaction
+  costs, currency-handling/AutoFX cost for USD).
+- Fees are user-editable because DEGIRO's schedule changes and varies by product/market.
+
+### 0.6 Explicitly OUT of scope for v1
+- Live/automated trading or order routing.
+- Real-time market data feeds.
+- Naked options, multi-leg spreads, futures.
+- Box 1 / Box 2 tax situations, corporate structures.
+- Portfolio-margin modeling.
+
+---
+
+## 1. Goals & Success Criteria
+
+**Primary goal:** Given a starting capital, an underlying, an options chain, and a time horizon,
+estimate the **compounded after-cost, after-Box-3-tax growth** of a covered-call / wheel strategy,
+and **recommend contract sizing / strike selection** under a chosen risk target.
+
+**Success criteria:**
+1. Produces a year-by-year projection table (capital, premiums collected, assignments, fees, Box 3
+   tax drag, ending equity, CAGR).
+2. Prices options and Greeks with a validated Black–Scholes implementation (unit-tested vs. known
+   references).
+3. Estimates volatility/drift from a supplied price series using the toolbox estimators.
+4. Runs a Monte-Carlo simulation to give a **distribution** of outcomes (P5/P50/P95), not just a
+   point estimate.
+5. Optimizer suggests contracts/strikes to hit a target income or max drawdown.
+6. All tax & fee parameters are external config; no magic numbers in code.
+
+---
+
+## 2. High-Level Architecture
+
+```
++-------------------------------------------------------------+
+|                        CLI / App layer                      |
+|  parse config, run scenarios, print/export reports (CSV)    |
++------------------------------+------------------------------+
+                               |
++------------------------------v------------------------------+
+|                      Strategy Engine                        |
+|  Wheel state machine: sell CSP -> assign -> covered call    |
+|  -> assign -> repeat; reinvest premiums (compounding)       |
++----+-------------------+-------------------+----------------+
+     |                   |                   |
++----v-----+   +---------v--------+   +------v-----------+
+| Pricing  |   |  Estimation      |   |  Tax & Costs     |
+| (BS,     |   |  (vol/drift from |   |  Box 3 tax +     |
+| Greeks,  |   |  price series)   |   |  DEGIRO fees +   |
+| assign.) |   |                  |   |  FX + dividends  |
++----+-----+   +---------+--------+   +------------------+
+     |                   |
++----v-------------------v------------------------------------+
+|          numerical-toolbox-cpp (external dependency)        |
+|  Estimators · Filters · Optimization · Solvers · math::Erfc |
++-------------------------------------------------------------+
+```
+
+---
+
+## 3. Project Layout
+
+Directory and file naming follow the repo's existing `.ls-lint.yml` rules (snake_case/kebab-case
+directories, PascalCase `.hpp`/`.cpp`) and the emil convention of a per-module `test/`
+subdirectory registered with `emil_add_test`.
+
+```
+fin-bs/
+├── CMakeLists.txt
+├── CMakePresets.json
+├── PLAN.md                           # this file
+├── README.md
+├── numerical-toolbox/                # git submodule → embedded-pro/numerical-toolbox-cpp @ v3.0.0
+├── config/
+│   ├── tax/nl_2025.json              # Box 3 params (versioned per year)
+│   ├── broker/degiro.json            # fee schedule
+│   └── scenarios/example.json        # a runnable scenario
+├── data/
+│   ├── prices/                       # historical price CSVs (user-provided)
+│   └── chains/                       # options chain snapshots
+├── source/
+│   ├── core/            # Money (integer cents), Date/DayCount, Rate      → fin.core
+│   ├── pricing/         # BlackScholes, Greeks, ImpliedVolatility         → fin.pricing
+│   ├── estimation/      # VolatilityEstimator, DriftEstimator             → fin.estimation
+│   ├── costs/           # DegiroFees, FxModel                             → fin.costs
+│   ├── tax/             # Box3TaxModel, DividendTax                       → fin.tax
+│   ├── strategy/        # WheelEngine, Position, CompoundingLedger        → fin.strategy
+│   ├── sim/             # Rng, GbmPathGenerator, MonteCarlo               → fin.sim
+│   ├── optimize/        # StrikeSizingOptimizer                           → fin.optimize
+│   ├── io/              # CSV/JSON loaders, ReportWriter                  → fin.io
+│   └── app/             # main.cpp CLI                                    → fin.app
+│       (each module also contains test/ and, where useful, test_doubles/)
+└── documentation/       # methodology, tax notes, validation log
+```
+
+**Dependency direction (no cycles):**
+
+```
+app → io → {strategy, optimize, sim} → {pricing, estimation, tax, costs} → core → numerical-toolbox
+```
+
+---
+
+## 4. Core Components (detailed)
+
+### 4.1 Pricing (`source/pricing/`)
+- `BlackScholes<T>`: European call/put price using `N(x) = 0.5 * math::Erfc(-x/√2)` (reuse toolbox
+  `math::Erfc` so we don't re-implement the CDF).
+- `Greeks<T>`: delta, gamma, theta, vega, rho — used for strike selection (e.g. "sell 0.30-delta
+  calls") and risk limits.
+- `AssignmentModel`: given spot vs. strike at expiry, decide assignment; supports early-assignment
+  heuristic on dividend dates.
+- **Tests:** price/Greeks vs. published reference values (`EXPECT_NEAR`), put–call parity invariant.
+
+### 4.2 Estimation (`source/estimation/`) — *this is where the toolbox earns its keep*
+- `VolatilityEstimator`: historical σ from log-returns; optional **EMA smoothing** (toolbox
+  `ExponentialMovingAverage`) and **online RLS** (toolbox `RecursiveLeastSquares`) for a rolling σ.
+- `DriftEstimator`: log-price trend via toolbox **Linear/Polynomial Regression** or
+  **Total Least Squares** (errors-in-variables, since prices are noisy).
+- Output feeds both the pricing model (IV proxy) and the Monte-Carlo SDE.
+- **Tests:** feed synthetic GBM data with known σ/μ, assert recovered params within tolerance.
+
+### 4.3 Strategy Engine (`source/strategy/`)
+- `WheelEngine`: state machine `{CASH → SHORT_PUT → HOLDING_SHARES → SHORT_CALL → …}`.
+- `CompoundingLedger`: tracks capital, reinvests net premium each cycle, sizes next round of
+  contracts from available capital (this is the *"increase investment over time"* mechanism).
+- Rolling rules (roll untested/tested legs) configurable.
+- **Tests:** deterministic scripted price paths → assert ledger balances, assignment transitions.
+
+### 4.4 Tax (`source/tax/`)
+- `Box3TaxModel`: loads `nl_<year>.json`; computes deemed return on year-end asset value minus
+  `heffingvrij vermogen`, applies Box 3 rate → annual **tax drag** subtracted from equity.
+- `DividendTax`: 15% dividendbelasting on dividends of held shares (as leakage/credit).
+- **Tests:** worked examples from config produce hand-checked tax amounts; boundary at allowance.
+
+### 4.5 Costs (`source/costs/`)
+- `DegiroFees`: per-contract option fee, share transaction cost, connectivity fee, from config.
+- `FxModel`: EUR/USD conversion + AutoFX handling cost for USD underlyings.
+- **Tests:** fee totals for a known trade list.
+
+### 4.6 Simulation (`source/sim/`)
+- `MonteCarlo`: simulates many GBM (or estimated-SDE) price paths using toolbox **Runge-Kutta**
+  integrators for the SDE drift term; runs the `WheelEngine` on each path; aggregates to
+  P5/P50/P95 equity and CAGR distributions.
+- **Tests:** convergence of the mean to closed-form expectation as paths → large.
+
+### 4.7 Optimization (`source/optimize/`)
+- `StrikeSizingOptimizer`: uses toolbox **Gradient Descent** with **L1/L2 regularization** to pick
+  {strike delta, number of contracts, cash buffer} maximizing after-tax CAGR subject to a max
+  drawdown / assignment-probability constraint.
+- **Tests:** on a convex synthetic objective, optimizer finds the known optimum.
+
+---
+
+## 5. Data & Configuration Contracts
+
+- **Price CSV:** `date,close` (adjusted close preferred).
+- **Options chain:** `expiry,strike,type,bid,ask,iv,delta` (snapshot; user-exported).
+- **Scenario JSON:** starting capital, underlying, horizon (years), target delta, roll rules,
+  reinvestment policy, currency, links to tax+broker configs.
+- **Tax config:** year, `heffingvrij_vermogen`, deemed-return brackets/percentages, Box 3 rate,
+  dividend WHT rate. Versioned; the active year is selected in the scenario.
+
+---
+
+## 6. Key Risks & Design Decisions
+
+1. **Library mismatch (biggest risk):** the toolbox is embedded/DSP, not finance. Mitigation:
+   treat it strictly as the *numerics* layer (regression, filtering, optimization, RK, `Erfc`) and
+   build all finance logic ourselves. This is already reflected in the architecture.
+2. **Tax model volatility:** Box 3 rules are being reformed. Mitigation: fully externalized,
+   year-versioned config + a mandatory validation step (§9).
+3. **Box 3 ≠ capital-gains:** projections must show **tax on assets**, not on premium income — a
+   common modeling mistake for NL. Called out explicitly in §0.4.
+4. **`float` money precision:** premiums/fees accumulate rounding error over many cycles.
+   **Decision:** use `double` (or integer cents) in `tax/`, `costs/`, `strategy/` ledgers even
+   though toolbox math runs in `float`; convert at the boundary.
+5. **No live data / no DEGIRO API:** v1 is snapshot-driven; documented clearly.
+6. **Model risk:** Black–Scholes/GBM understates tail/assignment risk. Mitigation: Monte-Carlo
+   distributions + explicit disclaimer.
+
+---
+
+## 7. Data Sourcing (DEGIRO reality)
+DEGIRO offers **no official retail API**. v1 workflow:
+- Export/download price history (e.g. from your own CSVs or a data provider) into `data/prices/`.
+- Manually snapshot the options chain into `data/chains/`.
+- Fees are modeled from the published DEGIRO schedule in `config/broker/degiro.json`.
+A future adapter interface (`io/ChainSource`) leaves room for a data provider later.
+---
+
+## 8. Work Breakdown
+
+Milestones are decomposed into **independently implementable, independently testable tasks**.
+Each task is meant to be one commit/PR: it adds one type or one behaviour, plus its tests, and
+leaves `ctest --preset host-Debug` green.
+
+**Conventions that apply to every task**
+- One public type per header, PascalCase filenames, `namespace fin::<module>`.
+- Every task ships GoogleTest coverage in the module's `test/` directory; no task is "done"
+  without tests.
+- No magic numbers: anything a user could plausibly want to change goes into `config/`.
+- Money is `Money` (integer cents), never `float`/`double` — see §6.4.
+- Toolbox types are only used *inside* a module; they never leak through a public `fin::` API.
+
+Legend for **Size**: `S` ≈ a single sitting, `M` ≈ a focused session, `L` → should be split further
+if it grows.
+
+---
+
+### Epic 0 — Foundation (M0)
+
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
+|---|---|---|---|---|---|
+| T0.1 | Vendor the toolbox | `numerical-toolbox/` submodule pinned to `v3.0.0`; `.gitmodules` committed; `git submodule update --init --recursive` restores it | — | S | **done** |
+| T0.2 | Root CMake wiring | Root `CMakeLists.txt` fetches `emil` at the toolbox's pin, `add_subdirectory(numerical-toolbox)`, `add_subdirectory(source)`; project renamed `fin_bs`; options prefixed `FIN_BS_*` | T0.1 | M | **done** |
+| T0.3 | Host-only presets | `CMakePresets.json` reduced to `host`, `host-single-Debug`, `coverage`; embedded/tiva/stm32 presets and MCU toolchain references removed | T0.2 | S | **done** |
+| T0.4 | Smoke module | `source/core/` builds target `fin.core` linking `numerical.math`; one test asserts `math::Erfc` is reachable and Φ(0) = 0.5 | T0.2 | S | **done** |
+| T0.5 | CI green | `.github/workflows/ci.yml` configures `host`, builds `host-Debug`, runs `ctest`; embedded build jobs removed | T0.3 | M | **done** |
+| T0.6 | Project metadata | `README.md`, `sonar-project.properties`, `.ls-lint.yml`, `.github/copilot-instructions.md` describe *this* project, not e-foc | T0.5 | S | **done** |
+
+**Exit criteria:** clean clone → `cmake --preset host && cmake --build --preset host-Debug && ctest --preset host-Debug` passes.
+
+Epic 0 removed the following e-foc leftovers, recoverable from git history if ever needed:
+the embedded build/release jobs, the Requirements Validation workflow, and the
+`cycle-analysis` / `validate-requirements` / `generate-requirements-pdf` composite actions.
+Release packaging is reduced to release-please only — artifact jobs come back with the CLI (T9.6).
+
+---
+
+### Epic 1 — Core value types (new; prerequisite for everything)
+
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
+|---|---|---|---|---|
+| T1.1 | `Money` | `source/core/Money.hpp` — `int64_t` cents, currency tag, `+ - * /`, banker's rounding, no implicit float conversion. Tests: associativity over 10k accumulations vs. exact integer reference; overflow guarded | T0.4 | M |
+| T1.2 | `Date` + day count | `Date.hpp` (civil date, no `<chrono>` zoneinfo dependency), `DayCount.hpp` with ACT/365F and ACT/252 → year fraction. Tests: leap years, expiry Fridays, known year-fraction pairs | T0.4 | S |
+| T1.3 | Strong scalar types | `Rate.hpp` (annualized, continuous vs. discrete), `Volatility.hpp`, `Delta.hpp` — prevent unit mix-ups at compile time. Tests: conversion round-trips | T0.4 | S |
+| T1.4 | `Contract` identity | `OptionContract.hpp`: underlying, expiry, strike (`Money`), `OptionType{Call,Put}`, multiplier (100). Tests: equality/ordering, multiplier applied to notional | T1.1, T1.2 | S |
+
+---
+
+### Epic 2 — Pricing (M1)
+
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
+|---|---|---|---|---|
+| T2.1 | Normal CDF | `pricing/NormalDistribution.hpp`: `Φ(x) = 0.5 * math::Erfc(-x/√2)`, plus pdf. Tests: Φ(0)=0.5, symmetry Φ(-x)=1-Φ(x), tail values vs. published table within 1e-7 | T0.4 | S |
+| T2.2 | Black–Scholes price | `pricing/BlackScholes.hpp` European call/put with continuous dividend yield `q`. Tests: ≥ 3 published reference prices (`EXPECT_NEAR`), **put–call parity** invariant, monotonicity in σ and in S | T2.1, T1.3 | M |
+| T2.3 | Greeks | `pricing/Greeks.hpp`: delta, gamma, theta, vega, rho. Tests: each Greek cross-checked against a central finite difference of T2.2 within 1e-4; gamma ≥ 0; call delta ∈ (0,1) | T2.2 | M |
+| T2.4 | Implied volatility | `pricing/ImpliedVolatility.hpp`: Newton on vega with bisection fallback and iteration cap. Tests: round-trip — price at σ then recover σ within 1e-5; converges for deep ITM/OTM; fails *gracefully* (no throw, returns `optional`) below intrinsic | T2.3 | M |
+| T2.5 | Assignment | `pricing/AssignmentModel.hpp`: at-expiry moneyness rule + early-assignment heuristic when a dividend exceeds remaining extrinsic value. Tests: ITM/OTM/ATM boundaries, dividend-driven early call assignment | T2.2, T1.4 | M |
+
+---
+
+### Epic 3 — Estimation (M2) — *toolbox-backed*
+
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
+|---|---|---|---|---|
+| T3.1 | Synthetic GBM generator | `estimation/test_doubles/GbmSeries.hpp` — deterministic seeded GBM with known μ/σ. This is a **test double built first**, so every later estimator has ground truth | T1.2 | S |
+| T3.2 | Log returns + historical σ | `estimation/LogReturns.hpp`, `HistoricalVolatility.hpp` (sample stddev × √annualization factor). Tests: recover σ from T3.1 within 5% at n=5000; zero-variance series → 0 | T3.1 | S |
+| T3.3 | EMA volatility | `estimation/EmaVolatilityEstimator.hpp` wrapping the toolbox `ExponentialMovingAverage` filter. Tests: step change in σ is tracked within the expected time constant; steady-state matches T3.2 | T3.2 | M |
+| T3.4 | Drift estimator | `estimation/DriftEstimator.hpp` — log-price vs. time via toolbox `LinearRegression`, with `TotalLeastSquares` as a selectable variant. Tests: recover μ from T3.1; TLS beats OLS when the time axis is perturbed | T3.1 | M |
+| T3.5 | Online/rolling σ | `estimation/RlsVolatilityEstimator.hpp` on toolbox `RecursiveLeastSquares`. Tests: converges to the batch estimate of T3.2; forgetting factor tracks a regime switch | T3.2 | M |
+| T3.6 | Estimator facade | `estimation/MarketParameters.hpp` — one call takes a price series and returns `{drift, volatility, dividendYield}` in `fin::` units (no toolbox types leaked). Tests: facade output equals the underlying estimators | T3.2–T3.5 | S |
+
+---
+
+### Epic 4 — Costs & FX (part of M4, pulled early — the ledger needs it)
+
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
+|---|---|---|---|---|
+| T4.1 | Fee schedule model | `costs/FeeSchedule.hpp` — plain data: per-contract option fee, per-trade share cost, % component with cap, annual connectivity fee per exchange | T1.1 | S |
+| T4.2 | `DegiroFees` | `costs/DegiroFees.hpp` applying a `FeeSchedule` to a trade list. Tests: hand-computed totals for a known 5-trade list; cap and minimum boundaries; contract count scaling | T4.1 | M |
+| T4.3 | `FxModel` | `costs/FxModel.hpp` — EUR base, rate + AutoFX handling cost in bps, applied on every USD-leg cashflow. Tests: round-trip EUR→USD→EUR loses exactly 2× the handling cost | T1.1 | S |
+| T4.4 | Broker config loader | `io/BrokerConfig.hpp` reads `config/broker/degiro.json` into a `FeeSchedule`. Tests: golden config parses; missing/negative fields rejected with a clear error | T4.1, T9.1 | M |
+
+---
+
+### Epic 5 — Strategy engine (M3)
+
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
+|---|---|---|---|---|
+| T5.1 | Portfolio state | `strategy/Portfolio.hpp` — cash, share lots, short option positions, collateral reserved. Tests: invariant "cash ≥ 0" and "collateral ≤ cash" enforced; opening a CSP reserves strike × 100 | T1.4, T1.1 | M |
+| T5.2 | Cashflow ledger | `strategy/CompoundingLedger.hpp` — append-only, typed cashflows (`Premium`, `Fee`, `Assignment`, `Dividend`, `Tax`, `Fx`); equity is derived, never stored. Tests: ledger sums reconcile to portfolio equity after a scripted sequence | T5.1, T4.2 | M |
+| T5.3 | Sizing / reinvestment policy | `strategy/ReinvestmentPolicy.hpp` — given free capital and a strike, how many contracts to open (this **is** the compounding mechanism); includes a configurable cash buffer. Tests: capital just below/above one contract's collateral; buffer respected | T5.2 | M |
+| T5.4 | Wheel state machine | `strategy/WheelEngine.hpp` — `CASH → SHORT_PUT → HOLDING_SHARES → SHORT_CALL → CASH`. Pure function of (state, market event). Tests: every legal transition + every illegal transition rejected | T5.3, T2.5 | L → split per state if needed |
+| T5.5 | Roll rules | `strategy/RollRules.hpp` — roll at N DTE, at X% of max profit, or when Δ breaches a threshold. Tests: each trigger fires exactly once on a scripted path; rolling never increases risk beyond the configured cap | T5.4 | M |
+| T5.6 | Deterministic projection | `strategy/Projection.hpp` — run the engine over a scripted price path, emit per-period rows. Tests: hand-checked 3-year path produces the expected premium/assignment/equity table | T5.5 | M |
+
+---
+
+### Epic 6 — Tax (M4)
+
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
+|---|---|---|---|---|
+| T6.1 | Box 3 config schema | `config/tax/nl_2025.json` + `tax/Box3Parameters.hpp` — `heffingvrij_vermogen`, deemed-return brackets/percentages, Box 3 rate, dividend WHT rate, `tax_year`. **Nothing hardcoded** | T1.1 | S |
+| T6.2 | `Box3TaxModel` | `tax/Box3TaxModel.hpp` — deemed return on 1-Jan asset value minus allowance × rate. Tests: worked examples hand-checked; boundary exactly at the allowance; zero and negative net-asset cases | T6.1 | M |
+| T6.3 | `DividendTax` | `tax/DividendTax.hpp` — 15% dividendbelasting withheld, modelled as a credit against Box 3. Tests: withholding + credit nets correctly; foreign-dividend leakage case | T6.1 | S |
+| T6.4 | Tax integration | Annual tax drag posted to the ledger on the peildatum. Tests: a full-year projection shows tax charged **on assets**, not on premium income (guards the §0.4 modelling mistake) | T6.2, T5.6 | M |
+| T6.5 | Validation log | `documentation/tax-validation.md` recording which Belastingdienst source each parameter came from and when it was checked | T6.1 | S |
+
+---
+
+### Epic 7 — Monte-Carlo (M5)
+
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
+|---|---|---|---|---|
+| T7.1 | Deterministic RNG | `sim/Rng.hpp` — seeded PRNG + normal variates. Tests: same seed → identical stream; sample mean/variance within tolerance at n=1e6 | T0.4 | S |
+| T7.2 | SDE path generator | `sim/GbmPathGenerator.hpp` — GBM integrated with the toolbox Runge-Kutta/Dormand-Prince integrators for the drift term. Tests: E[S_t] converges to `S_0 e^{μt}`; log-variance converges to `σ²t` | T7.1, T3.6 | M |
+| T7.3 | Simulation runner | `sim/MonteCarlo.hpp` — runs `WheelEngine` over N paths, collects terminal equity and CAGR. Tests: N=1 reproduces the deterministic projection of T5.6 | T7.2, T5.6 | M |
+| T7.4 | Distribution aggregation | `sim/OutcomeDistribution.hpp` — P5/P50/P95, max drawdown, assignment frequency. Tests: percentiles of a known distribution; monotone ordering P5 ≤ P50 ≤ P95 | T7.3 | S |
+| T7.5 | Convergence test | Statistical test that the MC mean approaches the closed-form expectation as N grows (with a fixed seed so CI is deterministic) | T7.4 | S |
+
+---
+
+### Epic 8 — Optimizer (M6)
+
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
+|---|---|---|---|---|
+| T8.1 | Objective adapter | `optimize/StrategyObjective.hpp` implementing the toolbox `ObjectiveFunction` interface over `{target delta, contract count, cash buffer}` → after-tax CAGR. Tests: objective is finite and deterministic for a fixed seed | T7.4, T6.4 | M |
+| T8.2 | Optimizer wrapper | `optimize/StrikeSizingOptimizer.hpp` on toolbox `GradientDescent` + L1/L2 regularization. Tests: on a **convex synthetic** objective the known optimum is found within tolerance | T8.1 | M |
+| T8.3 | Constraints | Penalty terms for max drawdown and assignment probability. Tests: a constraint-violating optimum is rejected in favour of a feasible one | T8.2 | M |
+| T8.4 | Recommendation output | `optimize/Recommendation.hpp` — chosen delta/contracts/buffer plus the achieved objective and binding constraints. Tests: output is reproducible for a fixed seed | T8.3 | S |
+
+---
+
+### Epic 9 — I/O, CLI, reports (M7)
+
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
+|---|---|---|---|---|
+| T9.1 | JSON reading utility | `io/JsonReader.hpp` over emil's `infra/syntax/Json.hpp`, with typed errors. Tests: malformed JSON, wrong type, missing key each produce a distinct error | T0.4 | M |
+| T9.2 | Price CSV loader | `io/PriceCsvLoader.hpp` for `date,close`. Tests: golden file; unsorted dates rejected; duplicate dates rejected; CRLF tolerated | T1.2 | M |
+| T9.3 | Options chain loader | `io/ChainCsvLoader.hpp` for `expiry,strike,type,bid,ask,iv,delta`, behind an `io/ChainSource` interface so a live provider can be added later. Tests: golden file; crossed bid/ask rejected | T1.4 | M |
+| T9.4 | Scenario loader | `io/ScenarioLoader.hpp` — starting capital, underlying, horizon, target delta, roll rules, reinvestment policy, currency, links to tax + broker configs. Tests: `config/scenarios/example.json` round-trips | T9.1, T6.1, T4.4 | M |
+| T9.5 | Report writer | `io/ReportWriter.hpp` — year-by-year CSV + aligned console table (capital, premiums, assignments, fees, tax drag, ending equity, CAGR). Tests: golden output for a fixed projection | T5.6 | M |
+| T9.6 | CLI | `app/main.cpp` with subcommands `price`, `estimate`, `project`, `simulate`, `optimize`; `--scenario <file>`; non-zero exit on bad input. Tests: end-to-end run of the example scenario produces the golden report | T9.5, T8.4 | L → one subcommand per commit |
+| T9.7 | Methodology docs | `documentation/methodology.md` (formulas, assumptions, limits) + the §9 validation checklist filled in | T9.6 | M |
+
+---
+
+### Suggested implementation order
+
+Epic 0 → Epic 1 → Epic 2 → Epic 3 → Epic 4 → Epic 5 → Epic 6 → Epic 7 → Epic 8 → Epic 9.
+
+The only useful reorderings: T9.1/T9.2 (loaders) can be pulled forward to feed real data into Epic 3,
+and Epic 4 can slip after Epic 5 if the ledger initially runs fee-free.
+
+**Next task to pick up:** T1.1 (`Money`).
+
+---
+
+## 9. Validation Checklist (do before trusting numbers)
+- [ ] Confirm the active-year **Box 3** parameters against Belastingdienst for your tax year.
+- [ ] Confirm current **DEGIRO fee schedule** for options/shares/AutoFX.
+- [ ] Black–Scholes prices/Greeks match an independent reference within tolerance.
+- [ ] Estimators recover known σ/μ from synthetic GBM.
+- [ ] Monte-Carlo mean converges to closed-form expectation.
+- [ ] Money math uses `double`/integer-cents, not `float`.
+
+---
+
+## 10. Open Questions for You
+1. Confirm **covered call + cash-secured put wheel** is the intended strategy (vs. naked/spreads).
+2. Which **underlyings** (US ETFs in USD? EUR-denominated)? This drives the FX model.
+3. Your **tax year** and whether you're strictly a **private Box 3 investor**.
+4. Preferred **price-history source** for the estimators (which CSV format).
+5. `float` vs. `double` requirement — I recommend `double`/integer-cents for money.

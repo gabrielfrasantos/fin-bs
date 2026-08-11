@@ -7,9 +7,5 @@ ignore:
   - .git
   - .github
   - .vscode
-  - .gitlab
   - megalinter-reports
-  - embedded-infra-lib
   - numerical-toolbox
-  - hal
-  - source/hardware/Host

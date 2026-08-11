@@ -39,5 +39,6 @@ rules:
 exclude:
   - build
   - install
+  - numerical-toolbox
 
 exclude_binary: true
