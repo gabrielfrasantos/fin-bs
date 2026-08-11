@@ -18,7 +18,9 @@ stale parameter is wrong in a way no automated check can detect.
 Mirrors [PLAN.md](../../PLAN.md) section 9. Most of these cannot be ticked yet; the parts of the
 model they refer to do not exist.
 
-- [ ] Active-year **Box 3** parameters confirmed against Belastingdienst.
+- [ ] Active-year **Box 3** parameters confirmed against Belastingdienst - the allowance, the two
+      imputed returns and the tax rate for 2025 are confirmed; the **dividend withholding rate is
+      not**, and none of them is confirmed for any other year.
 - [ ] Current **DEGIRO fee schedule** confirmed for options, shares and currency conversion -
       shares, handling, connectivity and currency handling are confirmed; the **option contract
       charge is not**, and it is the cost this project is most sensitive to.
@@ -40,3 +42,5 @@ model they refer to do not exist.
 | Proportional costs | whole basis points, one rounding, half-to-even | [theory](../theory/broker-costs.md), [D18](../design/decisions.md) |
 | Configured cash | stated directly in minor units, never as a decimal | [D20](../design/decisions.md) |
 | Currency conversion | spot amount and handling cost reported separately | [theory](../theory/currency-conversion.md), [D19](../design/decisions.md) |
+| Basis of taxation | wealth on one reference date, never income | [theory](../theory/box3-taxation.md), [D26](../design/decisions.md) |
+| Borrowing | not modelled; wealth is non-negative | [D29](../design/decisions.md) |

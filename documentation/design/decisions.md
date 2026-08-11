@@ -611,3 +611,104 @@ path - and an inconsistent script produces a plausible-looking projection of not
 
 **Reconsider if** strike selection by target delta is brought inside the projection, which would
 require it to price a chain rather than read a strike.
+
+---
+
+## D26 - The tax layer is given what is held, never what was earned
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** The tax this project models is a tax on wealth: it values the portfolio on one reference
+date a year, imputes a return to it from published percentages, and charges a rate on that. Premiums,
+capital gains and losses do not enter it. Almost every published tool for an options-income strategy
+is written for a jurisdiction that taxes realised profit, and the mistake of carrying that assumption
+across is invisible - it produces a plausible number that is wrong by a large factor in whichever
+direction the strategy happens to run.
+
+**Decision.** The only thing the tax layer accepts is a description of what is held on a date, split
+by the kinds the rules distinguish. There is no argument by which a premium, a gain or a loss could
+reach it, and no overload that takes one.
+
+**Consequences.** The error cannot be made in the calling code, only by changing what the layer
+accepts, which is a change a reviewer would see. A projection that collected a great deal of premium
+and one that collected none are charged identically if they end the year holding the same thing, and
+a losing year is still charged - both of which are correct here and would be nonsense under a profit
+tax. The cost is that the layer cannot be reused, unmodified, for a jurisdiction that does tax profit;
+that jurisdiction needs its own model, which is the honest answer.
+
+---
+
+## D27 - The share of the taxable base in the wealth is a derived proportion, not a configured rate
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** The allowance does not exempt a particular asset; it exempts a proportion of the whole
+portfolio, and the deemed return is reduced in that same proportion. That proportion is a ratio of two
+amounts, different for every portfolio, so unlike every other rate in this project it cannot be
+[a whole number of basis points](#d18---proportional-costs-are-whole-basis-points). Holding it in
+integers instead - multiplying the deemed return by the base before dividing by the wealth - is exact,
+but the product overflows a signed sixty-four-bit count of minor units at a portfolio size that is
+large and not absurd, and overflow here would stop a run that ought to succeed.
+
+**Decision.** The proportion is a decimal. The taxable return is the deemed return scaled by it and
+rounded to minor units once, at that point. This is the only place in the tax layer where an amount
+passes through a decimal.
+
+**Consequences.** There is no portfolio size at which the charge stops being computable, and the
+result is still reproducible, because the scaling is one multiplication followed by the project's
+usual rounding rule. The cost is one rounding that is not exact arithmetic, worth at most half a minor
+unit on the taxable return, against a charge measured in hundreds. It also means the charge is not
+exactly the tax rate times the imputed return times the taxable base, even when all wealth is of one
+kind; the two differ by the intermediate rounding, which is why the worked example states the
+intermediate figures rather than only the answer.
+
+---
+
+## D28 - A reference date is part of the script, and the charge is struck where it falls
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** [D24](#d24---a-cycle-is-the-unit-of-a-projection-and-a-roll-ends-one) makes a cycle the
+unit of a projection, so no row boundary coincides with the turn of a year. An annual charge measured
+on one date therefore falls *inside* a cycle, at a moment when a position is normally open. Valuing
+the portfolio then needs a price, and [D25](#d25---the-strategy-layer-is-driven-by-a-script-and-prices-nothing)
+says the strategy layer never produces one.
+
+**Decision.** The period that contains a reference date carries it, together with the price of the
+underlying on that date. The projection values the holdings as they stand at that instant - including
+any open position, at its settlement value - charges the tax, pays it out of uncommitted cash, and
+records it in the ledger on the reference date rather than on the row's date. A reference date the
+projection reaches with no position open is struck all the same.
+
+**Consequences.** The charge lands on the right holdings and on the right date without a cycle being
+cut in two, and the ledger stays in date order without the projection having to reorder anything.
+Because the charge is settled from uncommitted cash, a strategy that commits every last unit as
+collateral has nothing left to pay with and the run stops; that is a real property of a fully invested
+cash-secured strategy rather than an artefact, and the cash buffer is the lever against it. The cost
+is that the caller must place each reference date in the period that contains it, and a script that
+omits one silently projects a year with no tax.
+
+---
+
+## D29 - Only wealth is taxed; borrowing is out of scope
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** The published rules impute a negative return to borrowings above a threshold, and net
+them against the imputed return on assets. Modelling that faithfully needs a further published
+parameter, and raises a question the sources do not settle cleanly: what happens when the netted
+return is negative.
+
+**Decision.** Wealth is non-negative by construction and a debt cannot be expressed. The strategy this
+project describes reserves the full purchase price against every written option
+([D21](#d21---a-short-position-reserves-cash-and-the-reservation-is-what-makes-it-covered)) and never
+borrows, so the term the model omits is one a projection cannot produce.
+
+**Consequences.** The parameter set is smaller by one figure that could not have been confirmed
+against a published source, and there is no unreachable branch computing a negative imputed return.
+The limitation is stated rather than hidden: an investor who has borrowings elsewhere is charged more
+in this model than they would be in reality, in the same way and for the same reason as an investor
+with assets outside this portfolio is charged less.
+
+**Reconsider if** a margined variant of the strategy is brought into scope, which is the same trigger
+as D21.

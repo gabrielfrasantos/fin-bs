@@ -10,11 +10,31 @@ history of what a rate used to be is what makes an old projection reproducible.
 | Exchange connectivity charge | 0.25% of portfolio value, capped at EUR 2.50 per exchange per calendar year; nil for Euronext Amsterdam and Brussels | DEGIRO Basic account | <https://www.degiro.nl/tarieven> (tariff page, stated peildatum 2025-10-01) | 2026-08-11 | project |
 | Currency handling (AutoFX) | 0.25% of the converted amount | DEGIRO Basic account, automatic conversion | <https://www.degiro.nl/tarieven> (tariff page, stated peildatum 2025-10-01) | 2026-08-11 | project |
 | Option contract charge | EUR 0.75 per contract | DEGIRO Basic account, Euronext Derivatives (Amsterdam) | **not yet confirmed** - the summary tariff page does not quote it; it must be read from the full tariff document at <https://www.degiro.nl/data/pdf/Tarievenoverzicht.pdf> | - | - |
+| Tax-free allowance (heffingsvrij vermogen) | EUR 57 684 | Box 3, tax year 2025, **without** a fiscal partner (with one it is doubled, to EUR 115 368) | <https://www.belastingdienst.nl/wps/wcm/connect/nl/box-3/content/heffingsvrij-vermogen> | 2026-08-11 | project |
+| Imputed return on bank deposits | 1.37% per year | Box 3, tax year 2025 | <https://www.belastingdienst.nl/wps/wcm/connect/nl/box-3/content/berekening-box-3-inkomen-2025> | 2026-08-11 | project |
+| Imputed return on investments and other assets | 5.88% per year | Box 3, tax year 2025 | <https://www.belastingdienst.nl/wps/wcm/connect/nl/box-3/content/berekening-box-3-inkomen-2025> | 2026-08-11 | project |
+| Box 3 tax rate | 36% | Box 3, tax year 2025 (also 36% for 2024 and 2026) | <https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/prive/inkomstenbelasting/heffingskortingen_boxen_tarieven/boxen_en_tarieven/box_3> | 2026-08-11 | project |
+| Dividend withholding tax (dividendbelasting) | 15% | Dutch dividends; used as the rate at which foreign withholding is creditable | **not yet confirmed against the issuing body's own page** - the rate is long-standing and uncontroversial, but no Belastingdienst page has been read for it | - | - |
+| Imputed return on debts | 2.70% per year | Box 3, tax year 2025 | <https://www.belastingdienst.nl/wps/wcm/connect/nl/box-3/content/berekening-box-3-inkomen-2025> | 2026-08-11 | project |
 
 ⚠️ The option contract charge is the single most influential cost in this project - a wheel strategy
-pays it on every leg of every cycle - and it is the one figure above that has **not** been confirmed
-against a published source. The value in the default configuration is a placeholder of the right
-order of magnitude. Confirm it before trusting any projection.
+pays it on every leg of every cycle - and it is one of two figures above that have **not** been
+confirmed against a published source, the other being the dividend withholding rate. Both values in
+the default configuration are placeholders of the right order of magnitude. Confirm them before
+trusting any projection.
+
+⚠️ Box 3 is being reformed. The imputed returns are re-set every year and the figure for bank deposits
+is provisional when the year begins and fixed only afterwards - the 2025 figure was 1.44% while
+provisional and settled at 1.37%. Separately, since the Supreme Court rulings of June 2024 an investor
+may declare their **actual** return instead, and the lower of the two is charged; this project models
+only the imputed calculation, so a projection is an upper bound on the charge for a year in which the
+portfolio did worse than the imputed return. Re-check the whole block above for every tax year before
+using it.
+
+The imputed return on debts is recorded because it bounds a case this project does not model: the
+strategy never borrows, so no debt term appears in the calculation
+([decision D29](../design/decisions.md)). It is not in the default configuration. Neither is the
+threshold below which debts are ignored, which has not been read from a published page.
 
 Two further figures on the DEGIRO tariff page are recorded here because they bound cases this project
 does not yet model: manual currency conversion costs EUR 10.00 plus 0.25%, and connectivity for US

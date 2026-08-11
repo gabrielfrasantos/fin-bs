@@ -93,9 +93,20 @@ reaches this layer a violation is a programming error.
 
 The layer prices nothing. Premiums, the value of a position at an observation, and the price at
 expiry are supplied by the script that drives the projection; assignment is decided by the moneyness
-rule of the valuation layer; charges are computed by the cost layer from a schedule read from a file.
-This is deliberate: a projection whose premiums came from a model would be a projection of the model,
-and its agreement with itself would prove nothing.
+rule of the valuation layer; charges are computed by the cost layer from a schedule read from a file;
+the annual wealth tax is computed by the tax layer from rules read from a file. This is deliberate: a
+projection whose premiums came from a model would be a projection of the model, and its agreement
+with itself would prove nothing.
+
+### The annual tax charge
+
+A cycle is not a calendar period, so the one date a year on which wealth is measured falls inside a
+cycle rather than on a row boundary. The script says which period contains that date and what the
+underlying was worth then; the projection values the holdings at that instant, including any open
+position, charges the tax, settles it from free cash and records it in the ledger on that date rather
+than on the row's. The charge falls on what is held and never on what was earned, which is the whole
+point of modelling this jurisdiction rather than assuming another. See [D26](decisions.md) and
+[D28](decisions.md), and [tax contracts](tax.md).
 
 ## Worked example
 
@@ -150,4 +161,5 @@ premium is received and 1.50 of contract charges is paid, leaving 10,337.00 in c
 - [Position sizing and compounding](../theory/position-sizing-and-compounding.md)
 - [Rolling a short option](../theory/rolling-a-short-option.md)
 - [Cost contracts](costs.md)
+- [Tax contracts](tax.md)
 - [Decision log](decisions.md)

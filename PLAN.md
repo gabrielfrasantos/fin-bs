@@ -278,11 +278,21 @@ Written so far: [quantities and their conventions](documentation/design/quantiti
   [position sizing and compounding](documentation/theory/position-sizing-and-compounding.md),
   [rolling a short option](documentation/theory/rolling-a-short-option.md).
 
-### 4.4 Tax (`source/tax/`)
-- `Box3TaxModel`: loads `nl_<year>.json`; computes deemed return on year-end asset value minus
-  `heffingvrij vermogen`, applies Box 3 rate → annual **tax drag** subtracted from equity.
-- `DividendTax`: 15% dividendbelasting on dividends of held shares (as leakage/credit).
-- **Tests:** worked examples from config produce hand-checked tax amounts; boundary at allowance.
+### 4.4 Tax (`source/tax/`) — implemented
+- `Box3Parameters`: plain data — tax year, tax-free allowance, imputed returns on deposits and on
+  investments, the Box 3 rate and the dividend withholding rate, all as whole minor units and whole
+  basis points. `io/TaxConfig` reads them from `config/tax/nl_<year>.json`; nothing is in the code.
+- `Box3TaxModel`: deemed return on wealth measured at the peildatum, reduced by the share of the
+  taxable base in that wealth, taxed at the Box 3 rate → the annual **tax drag**. It accepts only a
+  description of what is *held*, so it cannot be handed an income.
+- `DividendTax`: withholding at the payer's rate, credited against the annual charge up to the
+  creditable rate; the excess is reported as leakage.
+- The projection strikes the charge on the reference date inside the cycle that contains it, pays it
+  from free cash and posts it to the ledger on that date.
+- **Tests:** hand-checked worked examples, the boundary exactly at the allowance, zero wealth, and a
+  full-year projection that pays nothing below the allowance however much premium it collected.
+- Design: [tax contracts](documentation/design/tax.md); theory:
+  [wealth taxation of an investment portfolio](documentation/theory/box3-taxation.md).
 
 ### 4.5 Costs (`source/costs/`) — implemented
 - `FeeSchedule`: plain data — per-contract option fee, share commission and handling fee per trade,
@@ -526,15 +536,40 @@ tests green in both Debug and Release.
 
 ---
 
-### Epic 6 — Tax (M4)
+### Epic 6 — Tax (M4) — **complete**
 
-| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
-|---|---|---|---|---|
-| T6.1 | Box 3 config schema | `config/tax/nl_2025.json` + `tax/Box3Parameters.hpp` — `heffingvrij_vermogen`, deemed-return brackets/percentages, Box 3 rate, dividend WHT rate, `tax_year`. **Nothing hardcoded** | T1.1 | S |
-| T6.2 | `Box3TaxModel` | `tax/Box3TaxModel.hpp` — deemed return on 1-Jan asset value minus allowance × rate. Tests: worked examples hand-checked; boundary exactly at the allowance; zero and negative net-asset cases | T6.1 | M |
-| T6.3 | `DividendTax` | `tax/DividendTax.hpp` — 15% dividendbelasting withheld, modelled as a credit against Box 3. Tests: withholding + credit nets correctly; foreign-dividend leakage case | T6.1 | S |
-| T6.4 | Tax integration | Annual tax drag posted to the ledger on the peildatum. Tests: a full-year projection shows tax charged **on assets**, not on premium income (guards the §0.4 modelling mistake) | T6.2, T5.6 | M |
-| T6.5 | Validation log | `documentation/validation/sources.md` gains a row per Box 3 parameter: value, Belastingdienst URL, date checked; `documentation/theory/box3-taxation.md` explains why the tax is on assets rather than on premium income | T6.1 | S |
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
+|---|---|---|---|---|---|
+| T6.1 | Box 3 config schema | `config/tax/nl_2025.json` + `tax/Box3Parameters.hpp` — `heffingvrij_vermogen`, deemed-return brackets/percentages, Box 3 rate, dividend WHT rate, `tax_year`. **Nothing hardcoded** | T1.1 | S | **done** |
+| T6.2 | `Box3TaxModel` | `tax/Box3TaxModel.hpp` — deemed return on 1-Jan asset value minus allowance × rate. Tests: worked examples hand-checked; boundary exactly at the allowance; zero and negative net-asset cases | T6.1 | M | **done** |
+| T6.3 | `DividendTax` | `tax/DividendTax.hpp` — 15% dividendbelasting withheld, modelled as a credit against Box 3. Tests: withholding + credit nets correctly; foreign-dividend leakage case | T6.1 | S | **done** |
+| T6.4 | Tax integration | Annual tax drag posted to the ledger on the peildatum. Tests: a full-year projection shows tax charged **on assets**, not on premium income (guards the §0.4 modelling mistake) | T6.2, T5.6 | M | **done** |
+| T6.5 | Validation log | `documentation/validation/sources.md` gains a row per Box 3 parameter: value, Belastingdienst URL, date checked; `documentation/theory/box3-taxation.md` explains why the tax is on assets rather than on premium income | T6.1 | S | **done** |
+
+**Exit criteria (met):** a projection charges an annual wealth tax on the portfolio as it stands on
+the reference date, from parameters read from a document that names its tax year; nothing about a tax
+rate is in the code; the ledger still reconciles once the charge is struck; a portfolio below the
+allowance is charged nothing however much premium it collected. 26 tests in the tax module, 11 for
+the configuration loader and 7 more in the projection, green in both Debug and Release.
+
+> **The tax cannot be handed an income.** The only input to the charge is a description of what is
+> held, split into bank deposits and investments because the published rules impute a different return
+> to each ([D26](documentation/design/decisions.md)). This is what makes the §0.4 mistake
+> unwritable rather than merely documented: there is no argument for a premium to be passed as.
+
+> **The reference date is part of the script.** A cycle is not a calendar period
+> ([D24](documentation/design/decisions.md)), so the period containing the turn of the year carries
+> the date and the price of the underlying on it. The projection values the holdings at that instant,
+> including any open position, and records the charge on that date rather than on the row's
+> ([D28](documentation/design/decisions.md)).
+
+> **Deviations from the acceptance criteria.** T6.2 asks for a negative net-asset case; borrowing is
+> not modelled, because the strategy never borrows and the published treatment of debts needs a
+> parameter that could not be confirmed, so wealth is non-negative by construction
+> ([D29](documentation/design/decisions.md)) and the boundary cases tested are zero wealth and wealth
+> exactly at the allowance. T6.3's 15% withholding rate is configured rather than fixed, and is the
+> one Box 3 figure in `validation/sources.md` still marked unconfirmed. The 2025 imputed return on
+> deposits is the settled 1.37%, not the provisional 1.44% that was published during the year.
 
 ---
 

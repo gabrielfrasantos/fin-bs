@@ -49,6 +49,8 @@ one day reverse.
   and where a schedule that is wrong is caught.
 - [Strategy contracts](design/strategy.md) - what a portfolio may do, how cashflows are recorded,
   which transitions of the cycle exist, and what a projection reports.
+- [Tax contracts](design/tax.md) - what a set of tax rules must be, what the tax layer guarantees,
+  and why it cannot be handed an income.
 - [Decision log](design/decisions.md) - numbered, dated modelling decisions.
 
 ### Theory
@@ -83,6 +85,9 @@ one day reverse.
   cash buffer, whole contracts, and why the granularity is a drag.
 - [Rolling a short option](theory/rolling-a-short-option.md) - the time, profit and risk triggers,
   what a roll costs, and why a rolled position cannot be assigned.
+- [Wealth taxation of an investment portfolio](theory/box3-taxation.md) - why the tax falls on what
+  is held on one date a year rather than on what was earned, and what that does to a strategy whose
+  income is large relative to its capital.
 
 ### Validation
 
