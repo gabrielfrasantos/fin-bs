@@ -1,3 +1,5 @@
 add_subdirectory(core)
+add_subdirectory(costs)
 add_subdirectory(estimation)
+add_subdirectory(io)
 add_subdirectory(pricing)

@@ -1,0 +1,12 @@
+{
+    "broker": "DEGIRO",
+    "account": "Basic, Netherlands",
+    "schedule_published": "2025-10-01",
+    "currency": "EUR",
+    "option_fee_per_contract_cents": 75,
+    "share_commission_per_trade_cents": 200,
+    "handling_fee_per_trade_cents": 100,
+    "connectivity_fee_cap_per_exchange_per_year_cents": 250,
+    "connectivity_basis_points": 25,
+    "currency_handling_basis_points": 25
+}
