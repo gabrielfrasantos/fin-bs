@@ -42,7 +42,7 @@ namespace fin::sim
         const auto path = generator.Along(schedule, rng);
         auto run = wheel;
 
-        const auto opening = strategy::Equity(run.Holdings(), path.Closes().front());
+        const auto opening = strategy::Equity(run.Holdings(), run.Underlying(), path.Closes().front());
         really_assert(opening.Cents() > 0);
 
         auto peak = opening;
@@ -67,7 +67,7 @@ namespace fin::sim
 
         return { .terminalEquity = equity,
             .growthRate = CompoundAnnualGrowth(opening, equity, script.Horizon()),
-            .cycles = script.Cycles(),
+            .positions = script.Cycles(),
             .assignments = assignments,
             .maximumDrawdown = drawdown };
     }

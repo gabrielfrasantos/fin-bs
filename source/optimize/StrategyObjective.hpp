@@ -4,26 +4,22 @@
 #include "source/optimize/Objective.hpp"
 #include "source/optimize/RiskLimits.hpp"
 #include "source/optimize/StrategySetting.hpp"
-#include "source/sim/GbmPathGenerator.hpp"
+#include "source/sim/BookScript.hpp"
 #include "source/sim/OutcomeDistribution.hpp"
-#include "source/sim/WheelScript.hpp"
 #include "source/strategy/Portfolio.hpp"
 #include "source/strategy/RollRules.hpp"
 #include "source/tax/Box3TaxModel.hpp"
 #include <cstdint>
-#include <string>
 
 namespace fin::optimize
 {
-    struct WheelExperiment
+    struct BookExperiment
     {
-        std::string underlying;
         strategy::Portfolio start;
         strategy::RollTriggers triggers;
         costs::BrokerFees fees;
         tax::Box3TaxModel taxes;
-        sim::WheelTerms terms;
-        sim::GbmParameters underlyingModel;
+        sim::BookTerms terms;
         std::int32_t paths;
         std::uint64_t seed;
     };
@@ -32,7 +28,7 @@ namespace fin::optimize
         : public Objective
     {
     public:
-        StrategyObjective(const WheelExperiment& experiment, const SettingRange& range, const RiskLimits& limits);
+        StrategyObjective(const BookExperiment& experiment, const SettingRange& range, const RiskLimits& limits);
 
         const SettingRange& Range() const;
         const RiskLimits& Limits() const;
@@ -42,10 +38,10 @@ namespace fin::optimize
         Point Gradient(const Point& at) const override;
 
     private:
-        WheelExperiment experiment;
+        BookExperiment experiment;
         SettingRange range;
         RiskLimits limits;
     };
 
-    bool IsWellFormed(const WheelExperiment& experiment);
+    bool IsWellFormed(const BookExperiment& experiment);
 }

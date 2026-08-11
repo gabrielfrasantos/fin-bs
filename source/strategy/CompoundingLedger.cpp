@@ -1,5 +1,6 @@
 #include "source/strategy/CompoundingLedger.hpp"
 #include "infra/util/ReallyAssert.hpp"
+#include <algorithm>
 
 namespace fin::strategy
 {
@@ -11,9 +12,13 @@ namespace fin::strategy
     {
         really_assert(amount.GetCurrency() == currency);
         really_assert(HasPermittedSign(kind, amount));
-        really_assert(entries.empty() || on >= entries.back().on);
 
-        entries.push_back({ on, kind, amount });
+        const auto after = std::upper_bound(entries.begin(), entries.end(), on, [](const core::Date& posted, const Cashflow& entry)
+            {
+                return posted < entry.on;
+            });
+
+        entries.insert(after, { on, kind, amount });
     }
 
     std::span<const Cashflow> CompoundingLedger::Entries() const

@@ -19,10 +19,19 @@ namespace fin::optimize::test
         return { .lowest = Setting(0.10, 200, 0.40), .highest = Setting(0.50, 4200, 0.80) };
     }
 
-    inline WheelExperiment Experiment(std::int32_t paths)
+    inline sim::UnderlyingTerms Market(std::string underlying, double initialPrice)
     {
-        return { .underlying = "ACME",
-            .start = strategy::Portfolio::Funded(Euro(200000.00)),
+        return { .underlying = std::move(underlying),
+            .initialPrice = Euro(initialPrice),
+            .drift = core::Rate::FromContinuous(0.07),
+            .volatility = core::Volatility::FromAnnualized(0.25),
+            .dividendYield = core::Rate::Zero(),
+            .strikeIncrement = Euro(1.00) };
+    }
+
+    inline BookExperiment Experiment(std::int32_t paths, std::vector<sim::UnderlyingTerms> underlyings)
+    {
+        return { .start = strategy::Portfolio::Funded(Euro(200000.00)),
             .triggers = { .daysToExpiry = 7, .profitCaptureBasisPoints = 8000, .deltaLimit = core::Delta::FromValue(0.60) },
             .fees = costs::BrokerFees(costs::FeeSchedule{ .optionFeePerContract = Euro(0.75),
                 .shareCommissionPerTrade = Euro(2.00),
@@ -41,17 +50,16 @@ namespace fin::optimize::test
                 .daysPerCycle = 182,
                 .observationDaysBeforeExpiry = 30,
                 .targetDelta = core::Delta::FromValue(0.30),
-                .strikeIncrement = Euro(1.00),
                 .riskFreeRate = core::Rate::FromContinuous(0.02),
-                .dividendYield = core::Rate::Zero(),
-                .volatility = core::Volatility::FromAnnualized(0.25),
-                .assessment = sim::AnnualReference{ .month = 1, .day = 1 } },
-            .underlyingModel = { .initialPrice = Euro(40.00),
-                .drift = core::Rate::FromContinuous(0.07),
-                .volatility = core::Volatility::FromAnnualized(0.25),
-                .convention = core::DayCountConvention::Act365Fixed },
+                .assessment = sim::AnnualReference{ .month = 1, .day = 1 },
+                .underlyings = std::move(underlyings) },
             .paths = paths,
             .seed = 20250811u };
+    }
+
+    inline BookExperiment Experiment(std::int32_t paths)
+    {
+        return Experiment(paths, { Market("ACME", 40.00) });
     }
 
     inline RiskLimits UnreachableLimits()

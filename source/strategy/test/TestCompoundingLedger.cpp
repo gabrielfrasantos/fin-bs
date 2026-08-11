@@ -39,7 +39,7 @@ TEST_F(TestCompoundingLedger, a_ledger_with_no_entries_nets_to_nothing)
     EXPECT_EQ(ledger.NetOf(CashflowKind::Premium), Euro(0.00));
 }
 
-TEST_F(TestCompoundingLedger, entries_are_kept_in_the_order_they_were_posted)
+TEST_F(TestCompoundingLedger, entries_dated_alike_are_kept_in_the_order_they_were_posted)
 {
     ledger.Post(Day(2), CashflowKind::Premium, Euro(160.00));
     ledger.Post(Day(2), CashflowKind::Fee, Euro(-1.50));
@@ -86,11 +86,19 @@ TEST_F(TestCompoundingLedger, a_dividend_can_never_be_a_charge)
     EXPECT_DEATH(ledger.Post(Day(2), CashflowKind::Dividend, Euro(-12.00)), "");
 }
 
-TEST_F(TestCompoundingLedger, an_entry_cannot_be_dated_before_the_one_before_it)
+TEST_F(TestCompoundingLedger, an_entry_dated_before_the_last_one_takes_its_place_in_the_record)
 {
     ledger.Post(Day(10), CashflowKind::Premium, Euro(160.00));
+    ledger.Post(Day(20), CashflowKind::Premium, Euro(20.00));
+    ledger.Post(Day(9), CashflowKind::Premium, Euro(10.00));
+    ledger.Post(Day(10), CashflowKind::Fee, Euro(-1.50));
 
-    EXPECT_DEATH(ledger.Post(Day(9), CashflowKind::Premium, Euro(10.00)), "");
+    ASSERT_EQ(ledger.Entries().size(), 4u);
+    EXPECT_EQ(ledger.Entries()[0].on, Day(9));
+    EXPECT_EQ(ledger.Entries()[1].amount, Euro(160.00));
+    EXPECT_EQ(ledger.Entries()[2].kind, CashflowKind::Fee);
+    EXPECT_EQ(ledger.Entries()[3].on, Day(20));
+    EXPECT_EQ(ledger.Net(), Euro(188.50));
 }
 
 TEST_F(TestCompoundingLedger, an_entry_in_another_currency_is_refused)
@@ -117,5 +125,5 @@ TEST_F(TestCompoundingLedger, the_ledger_accounts_for_every_movement_of_cash)
     ledger.Post(Day(20), CashflowKind::Fee, Euro(-3.00));
 
     EXPECT_EQ(portfolio.Cash(), opening + ledger.Net());
-    EXPECT_EQ(Equity(portfolio, Euro(40.00)), opening + ledger.Net() + Euro(40.00) * portfolio.Shares());
+    EXPECT_EQ(Equity(portfolio, "ACME", Euro(40.00)), opening + ledger.Net() + Euro(40.00) * portfolio.Shares("ACME"));
 }

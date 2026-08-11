@@ -13,6 +13,12 @@ target_link_libraries(fin.strategy PUBLIC
 )
 
 target_sources(fin.strategy PRIVATE
+    Account.cpp
+    Account.hpp
+    Book.cpp
+    Book.hpp
+    CollateralAllocation.cpp
+    CollateralAllocation.hpp
     CompoundingLedger.cpp
     CompoundingLedger.hpp
     Portfolio.cpp

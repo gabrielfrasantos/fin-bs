@@ -4,6 +4,7 @@
 
 namespace
 {
+    using fin::optimize::BookExperiment;
     using fin::optimize::ExcessOver;
     using fin::optimize::Penalty;
     using fin::optimize::Point;
@@ -11,8 +12,8 @@ namespace
     using fin::optimize::RiskLimits;
     using fin::optimize::SettingAt;
     using fin::optimize::StrategyObjective;
-    using fin::optimize::WheelExperiment;
     using fin::optimize::test::Experiment;
+    using fin::optimize::test::Market;
     using fin::optimize::test::SearchedRange;
     using fin::optimize::test::Setting;
     using fin::optimize::test::UnreachableLimits;
@@ -36,8 +37,12 @@ TEST(TestStrategyObjective, an_experiment_that_describes_a_run_is_well_formed)
 TEST(TestStrategyObjective, an_experiment_that_does_not_describe_a_run_is_not_well_formed)
 {
     auto nameless = Experiment(paths);
-    nameless.underlying.clear();
+    nameless.terms.underlyings.front().underlying.clear();
     EXPECT_FALSE(IsWellFormed(nameless));
+
+    auto bookless = Experiment(paths);
+    bookless.terms.underlyings.clear();
+    EXPECT_FALSE(IsWellFormed(bookless));
 
     auto pathless = Experiment(0);
     EXPECT_FALSE(IsWellFormed(pathless));
@@ -108,4 +113,24 @@ TEST(TestStrategyObjective, a_run_that_passes_a_limit_is_charged_for_exactly_the
 
     EXPECT_GT(outcome.WorstDrawdown(), 0.0);
     EXPECT_DOUBLE_EQ(objective.Cost(PointOf(SearchedRange(), setting)), Penalty(strict, ExcessOver(strict, outcome)) - outcome.MeanGrowthRate());
+}
+
+TEST(TestStrategyObjective, a_book_of_several_underlyings_is_scored_by_the_same_three_choices)
+{
+    const StrategyObjective objective(Experiment(paths, { Market("ACME", 40.00), Market("BETA", 55.00), Market("GAMMA", 30.00) }), SearchedRange(), UnreachableLimits());
+    const Point at{ 0.5, 0.5, 0.5 };
+
+    EXPECT_EQ(objective.Cost(at), objective.Cost(at));
+
+    for (const auto slope : objective.Gradient(at))
+        EXPECT_TRUE(std::isfinite(slope));
+}
+
+TEST(TestStrategyObjective, a_book_is_not_scored_as_the_underlying_that_happens_to_be_listed_first)
+{
+    const StrategyObjective one(Experiment(paths, { Market("ACME", 40.00) }), SearchedRange(), UnreachableLimits());
+    const StrategyObjective several(Experiment(paths, { Market("ACME", 40.00), Market("BETA", 55.00) }), SearchedRange(), UnreachableLimits());
+    const Point at{ 0.5, 0.5, 0.5 };
+
+    EXPECT_NE(one.Cost(at), several.Cost(at));
 }

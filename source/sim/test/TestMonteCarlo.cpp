@@ -136,7 +136,7 @@ TEST_F(TestMonteCarlo, one_path_is_the_projection_of_the_script_that_path_writes
 
     ASSERT_EQ(distribution.Paths(), 1u);
     EXPECT_EQ(distribution.Equity(100), rows.back().equity);
-    EXPECT_EQ(distribution.At(100).cycles, script.Cycles());
+    EXPECT_EQ(distribution.At(100).positions, script.Cycles());
 }
 
 TEST_F(TestMonteCarlo, the_same_seed_gives_the_same_distribution)
@@ -163,7 +163,7 @@ TEST_F(TestMonteCarlo, no_path_runs_out_of_the_cash_it_needs_to_settle_what_it_o
         const auto distribution = simulation.Over(256, rng);
 
         ASSERT_EQ(distribution.Paths(), 256u);
-        EXPECT_EQ(distribution.At(50).cycles, script.Cycles());
+        EXPECT_EQ(distribution.At(50).positions, script.Cycles());
         EXPECT_GE(distribution.AssignmentFrequency(), 0.0);
         EXPECT_LE(distribution.AssignmentFrequency(), 1.0);
         EXPECT_GE(distribution.WorstDrawdown(), 0.0);

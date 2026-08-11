@@ -17,6 +17,10 @@ target_link_libraries(fin.sim PRIVATE
 )
 
 target_sources(fin.sim PRIVATE
+    BookMonteCarlo.cpp
+    BookMonteCarlo.hpp
+    BookScript.cpp
+    BookScript.hpp
     GbmPathGenerator.cpp
     GbmPathGenerator.hpp
     MonteCarlo.cpp
@@ -25,6 +29,7 @@ target_sources(fin.sim PRIVATE
     OutcomeDistribution.hpp
     Rng.cpp
     Rng.hpp
+    RunObserver.hpp
     WheelScript.cpp
     WheelScript.hpp
 )

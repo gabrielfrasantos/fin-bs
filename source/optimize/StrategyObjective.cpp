@@ -1,8 +1,8 @@
 #include "source/optimize/StrategyObjective.hpp"
 #include "infra/util/ReallyAssert.hpp"
-#include "source/sim/MonteCarlo.hpp"
+#include "source/sim/BookMonteCarlo.hpp"
 #include "source/sim/Rng.hpp"
-#include "source/strategy/Projection.hpp"
+#include "source/strategy/Book.hpp"
 #include "source/strategy/ReinvestmentPolicy.hpp"
 #include <algorithm>
 
@@ -11,9 +11,23 @@ namespace fin::optimize
     namespace
     {
         constexpr double differenceStep = 0.0625;
+
+        std::vector<sim::GbmPathGenerator> MarketsOf(const sim::BookTerms& terms)
+        {
+            std::vector<sim::GbmPathGenerator> generators;
+            generators.reserve(terms.underlyings.size());
+
+            for (const auto& underlying : terms.underlyings)
+                generators.push_back(sim::GbmPathGenerator(sim::GbmParameters{ .initialPrice = underlying.initialPrice,
+                    .drift = underlying.drift,
+                    .volatility = underlying.volatility,
+                    .convention = core::DayCountConvention::Act365Fixed }));
+
+            return generators;
+        }
     }
 
-    StrategyObjective::StrategyObjective(const WheelExperiment& experiment, const SettingRange& range, const RiskLimits& limits)
+    StrategyObjective::StrategyObjective(const BookExperiment& experiment, const SettingRange& range, const RiskLimits& limits)
         : experiment(experiment)
         , range(range)
         , limits(limits)
@@ -43,8 +57,9 @@ namespace fin::optimize
         auto triggers = experiment.triggers;
         triggers.deltaLimit = setting.rollDeltaLimit;
 
-        const strategy::Projection wheel(experiment.underlying, experiment.start, strategy::ReinvestmentPolicy::WithCashBuffer(setting.cashBufferBasisPoints), strategy::RollRules(triggers), experiment.fees, experiment.taxes);
-        const sim::MonteCarlo simulation(wheel, sim::WheelScript(terms), sim::GbmPathGenerator(experiment.underlyingModel));
+        const sim::BookScript script(terms);
+        const strategy::Book book(script.Underlyings(), experiment.start, strategy::ReinvestmentPolicy::WithCashBuffer(setting.cashBufferBasisPoints), strategy::RollRules(triggers), experiment.fees, experiment.taxes);
+        const sim::BookMonteCarlo simulation(book, script, MarketsOf(terms));
         sim::Rng rng(experiment.seed);
 
         return simulation.Over(experiment.paths, rng);
@@ -80,10 +95,9 @@ namespace fin::optimize
         return gradient;
     }
 
-    bool IsWellFormed(const WheelExperiment& experiment)
+    bool IsWellFormed(const BookExperiment& experiment)
     {
-        return !experiment.underlying.empty() &&
-               strategy::IsWellFormed(experiment.triggers) &&
+        return strategy::IsWellFormed(experiment.triggers) &&
                sim::IsWellFormed(experiment.terms) &&
                experiment.paths > 0 &&
                experiment.start.ShortPositions().empty();

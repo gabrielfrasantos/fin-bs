@@ -17,8 +17,8 @@ namespace fin::sim
 
         for (const auto& outcome : outcomes)
         {
-            really_assert(outcome.cycles > 0);
-            really_assert(outcome.assignments >= 0 && outcome.assignments <= outcome.cycles);
+            really_assert(outcome.positions > 0);
+            really_assert(outcome.assignments >= 0 && outcome.assignments <= outcome.positions);
             really_assert(outcome.terminalEquity.GetCurrency() == outcomes.front().terminalEquity.GetCurrency());
         }
 
@@ -91,14 +91,14 @@ namespace fin::sim
     double OutcomeDistribution::AssignmentFrequency() const
     {
         std::int64_t assignments = 0;
-        std::int64_t cycles = 0;
+        std::int64_t positions = 0;
 
         for (const auto& outcome : ordered)
         {
             assignments += outcome.assignments;
-            cycles += outcome.cycles;
+            positions += outcome.positions;
         }
 
-        return static_cast<double>(assignments) / static_cast<double>(cycles);
+        return static_cast<double>(assignments) / static_cast<double>(positions);
     }
 }

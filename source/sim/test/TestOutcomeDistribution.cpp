@@ -16,7 +16,7 @@ namespace
 
     PathOutcome Ending(double equity, double growthRate, std::int32_t assignments, double drawdown)
     {
-        return { .terminalEquity = Euro(equity), .growthRate = growthRate, .cycles = 4, .assignments = assignments, .maximumDrawdown = drawdown };
+        return { .terminalEquity = Euro(equity), .growthRate = growthRate, .positions = 4, .assignments = assignments, .maximumDrawdown = drawdown };
     }
 
     OutcomeDistribution HundredOutcomes()

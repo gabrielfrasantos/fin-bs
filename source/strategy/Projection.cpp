@@ -4,26 +4,13 @@
 #include "source/costs/Trade.hpp"
 #include "source/pricing/AssignmentModel.hpp"
 #include <algorithm>
+#include <array>
 #include <utility>
 
 namespace fin::strategy
 {
     namespace
     {
-        struct Movements
-        {
-            std::int64_t contracts;
-            core::Money premium;
-            core::Money fees;
-            core::Money assignment;
-            core::Money tax;
-        };
-
-        Movements Nothing(core::Currency currency)
-        {
-            return { 0, core::Money::Zero(currency), core::Money::Zero(currency), core::Money::Zero(currency), core::Money::Zero(currency) };
-        }
-
         core::Money PerContract(double perShare, const core::OptionContract& contract, core::Currency currency)
         {
             return core::Money::FromAmount(perShare, currency) * static_cast<std::int64_t>(contract.Multiplier());
@@ -34,32 +21,49 @@ namespace fin::strategy
             return static_cast<std::int64_t>(contract.Multiplier()) * contracts;
         }
 
-        tax::Box3Assets AssetsOf(const Portfolio& portfolio, const core::Money& spot)
+        bool WritesNothingYet(const Portfolio& portfolio, const std::string& underlying)
         {
-            const auto equity = Equity(portfolio, spot);
+            const auto positions = portfolio.ShortPositions();
+
+            return std::none_of(positions.begin(), positions.end(), [&underlying](const ShortOption& open)
+                {
+                    return open.contract.Underlying() == underlying;
+                });
+        }
+
+        tax::Box3Assets AssetsOf(const Portfolio& portfolio, const std::string& underlying, const core::Money& spot)
+        {
+            const auto equity = Equity(portfolio, underlying, spot);
             const auto deposits = std::min(portfolio.Cash(), equity);
 
             return { deposits, equity - deposits };
-        }
-
-        ProjectionRow RowFor(const ProjectionPeriod& period, WheelState state, const Movements& movements, const Portfolio& portfolio)
-        {
-            return { period.expiry, state, movements.contracts, movements.premium, movements.fees, movements.assignment, movements.tax, portfolio.Cash(), portfolio.Shares(), Equity(portfolio, period.spotAtExpiry) };
         }
     }
 
     Projection::Projection(std::string underlying, const Portfolio& start, const ReinvestmentPolicy& policy, const RollRules& rules, const costs::BrokerFees& brokerFees, const tax::Box3TaxModel& taxes)
         : underlying(std::move(underlying))
-        , portfolio(start)
+        , owned(Account(start, taxes))
+        , shared(nullptr)
         , policy(policy)
         , rules(rules)
         , brokerFees(brokerFees)
-        , taxes(taxes)
-        , ledger(start.GetCurrency())
-        , state(start.Shares() > 0 ? WheelState::HoldingShares : WheelState::Cash)
+        , state(start.Shares(this->underlying) > 0 ? WheelState::HoldingShares : WheelState::Cash)
     {
         really_assert(!this->underlying.empty());
-        really_assert(start.ShortPositions().empty());
+        really_assert(WritesNothingYet(start, this->underlying));
+    }
+
+    Projection::Projection(std::string underlying, Account& shared, const ReinvestmentPolicy& policy, const RollRules& rules, const costs::BrokerFees& brokerFees)
+        : underlying(std::move(underlying))
+        , owned(std::nullopt)
+        , shared(&shared)
+        , policy(policy)
+        , rules(rules)
+        , brokerFees(brokerFees)
+        , state(shared.Holdings().Shares(this->underlying) > 0 ? WheelState::HoldingShares : WheelState::Cash)
+    {
+        really_assert(!this->underlying.empty());
+        really_assert(WritesNothingYet(shared.Holdings(), this->underlying));
     }
 
     std::vector<ProjectionRow> Projection::Over(std::span<const ProjectionPeriod> periods)
@@ -68,9 +72,19 @@ namespace fin::strategy
         rows.reserve(periods.size());
 
         for (const auto& period : periods)
-            rows.push_back(Advance(period));
+        {
+            const std::array marks{ SpotPrice{ underlying, period.spotAtExpiry } };
+
+            Write(period);
+            rows.push_back(Settle(period, marks));
+        }
 
         return rows;
+    }
+
+    const std::string& Projection::Underlying() const
+    {
+        return underlying;
     }
 
     WheelState Projection::State() const
@@ -80,16 +94,29 @@ namespace fin::strategy
 
     const Portfolio& Projection::Holdings() const
     {
-        return portfolio;
+        return Books().Holdings();
     }
 
     const CompoundingLedger& Projection::Ledger() const
     {
-        return ledger;
+        return Books().Ledger();
     }
 
-    ProjectionRow Projection::Advance(const ProjectionPeriod& period)
+    Account& Projection::Books()
     {
+        return owned.has_value() ? *owned : *shared;
+    }
+
+    const Account& Projection::Books() const
+    {
+        return owned.has_value() ? *owned : *shared;
+    }
+
+    void Projection::Write(const ProjectionPeriod& period)
+    {
+        really_assert(!open.has_value());
+
+        auto& portfolio = Books().Holdings();
         const auto currency = portfolio.GetCurrency();
 
         really_assert(period.opened <= period.expiry);
@@ -100,98 +127,129 @@ namespace fin::strategy
 
         const auto writingPut = state == WheelState::Cash;
         const core::OptionContract contract(underlying, period.expiry, period.strike, writingPut ? core::OptionType::Put : core::OptionType::Call);
+        const Movements nothing{ 0, core::Money::Zero(currency), core::Money::Zero(currency), core::Money::Zero(currency), core::Money::Zero(currency) };
 
-        auto movements = Nothing(currency);
-        auto assessment = period.assessed;
+        open = OpenCycle{ contract, nothing, period.assessed };
+        open->movements.contracts = writingPut
+                                        ? policy.ContractsFor(portfolio.FreeCash(), contract.Notional())
+                                        : portfolio.UncoveredShares(underlying) / static_cast<std::int64_t>(contract.Multiplier());
 
-        const auto assess = [&](const core::Date& upTo)
-        {
-            if (!assessment.has_value() || assessment->on > upTo)
-                return;
-
-            really_assert(assessment->on >= period.opened && assessment->on <= period.expiry);
-            really_assert(assessment->spot.GetCurrency() == currency);
-
-            const auto on = assessment->on;
-            const auto charge = taxes.Charge(AssetsOf(portfolio, assessment->spot));
-            assessment.reset();
-
-            if (charge.Cents() == 0)
-                return;
-
-            portfolio.Pay(charge);
-            ledger.Post(on, CashflowKind::Tax, -charge);
-            movements.tax += charge;
-        };
-
-        movements.contracts = writingPut
-                                  ? policy.ContractsFor(portfolio.FreeCash(), contract.Notional())
-                                  : portfolio.UncoveredShares() / static_cast<std::int64_t>(contract.Multiplier());
-
-        if (movements.contracts == 0)
-        {
-            assess(period.expiry);
-            return RowFor(period, state, movements, portfolio);
-        }
+        if (open->movements.contracts == 0)
+            return;
 
         if (writingPut)
-            portfolio.SellPut(contract, movements.contracts);
+            portfolio.SellPut(contract, open->movements.contracts);
         else
-            portfolio.SellCall(contract, movements.contracts);
+            portfolio.SellCall(contract, open->movements.contracts);
 
         MoveOn(writingPut ? WheelEvent::SellPut : WheelEvent::SellCall);
 
-        const auto received = PerContract(period.premiumPerShare, contract, currency) * movements.contracts;
+        const auto received = PerContract(period.premiumPerShare, contract, currency) * open->movements.contracts;
         portfolio.Receive(received);
-        ledger.Post(period.opened, CashflowKind::Premium, received);
-        movements.premium += received;
+        Books().Ledger().Post(period.opened, CashflowKind::Premium, received);
+        open->movements.premium += received;
 
-        const auto openingFee = brokerFees.For(costs::Trade::Options(movements.contracts));
+        const auto openingFee = brokerFees.For(costs::Trade::Options(open->movements.contracts));
         portfolio.Pay(openingFee);
-        ledger.Post(period.opened, CashflowKind::Fee, -openingFee);
-        movements.fees += openingFee;
+        Books().Ledger().Post(period.opened, CashflowKind::Fee, -openingFee);
+        open->movements.fees += openingFee;
+    }
+
+    ProjectionRow Projection::Settle(const ProjectionPeriod& period, std::span<const SpotPrice> marks)
+    {
+        really_assert(open.has_value());
+        really_assert(open->contract.Expiry() == period.expiry && open->contract.Strike() == period.strike);
+
+        const auto row = Resolve(period, marks);
+        open.reset();
+
+        return row;
+    }
+
+    ProjectionRow Projection::Resolve(const ProjectionPeriod& period, std::span<const SpotPrice> marks)
+    {
+        auto& portfolio = Books().Holdings();
+        auto& ledger = Books().Ledger();
+        const auto currency = portfolio.GetCurrency();
+        const auto contract = open->contract;
+
+        if (open->movements.contracts == 0)
+        {
+            Assess(period, period.expiry);
+            return RowFor(period, marks);
+        }
 
         if (Rolls(period))
         {
-            assess(period.observed->on);
+            Assess(period, period.observed->on);
 
-            const auto paid = PerContract(period.observed->valuePerShare, contract, currency) * movements.contracts;
+            const auto paid = PerContract(period.observed->valuePerShare, contract, currency) * open->movements.contracts;
             portfolio.Close(contract);
             portfolio.Pay(paid);
             ledger.Post(period.observed->on, CashflowKind::Premium, -paid);
-            movements.premium -= paid;
+            open->movements.premium -= paid;
 
-            const auto closingFee = brokerFees.For(costs::Trade::Options(movements.contracts));
+            const auto closingFee = brokerFees.For(costs::Trade::Options(open->movements.contracts));
             portfolio.Pay(closingFee);
             ledger.Post(period.observed->on, CashflowKind::Fee, -closingFee);
-            movements.fees += closingFee;
+            open->movements.fees += closingFee;
 
             MoveOn(WheelEvent::Closed);
-            assess(period.expiry);
-            return RowFor(period, state, movements, portfolio);
+            Assess(period, period.expiry);
+            return RowFor(period, marks);
         }
 
-        assess(period.expiry);
+        Assess(period, period.expiry);
 
         if (pricing::AssignmentModel::AtExpiry(contract, period.spotAtExpiry) == pricing::AssignmentOutcome::NotAssigned)
         {
             portfolio.Close(contract);
             MoveOn(WheelEvent::ExpiredWorthless);
-            return RowFor(period, state, movements, portfolio);
+            return RowFor(period, marks);
         }
 
-        const auto settlement = contract.Notional() * movements.contracts;
+        const auto settlement = contract.Notional() * open->movements.contracts;
         portfolio.Assign(contract);
-        movements.assignment = writingPut ? -settlement : settlement;
-        ledger.Post(period.expiry, CashflowKind::Assignment, movements.assignment);
+        open->movements.assignment = contract.Type() == core::OptionType::Put ? -settlement : settlement;
+        ledger.Post(period.expiry, CashflowKind::Assignment, open->movements.assignment);
 
-        const auto settlementFee = brokerFees.For(costs::Trade::Shares(SharesUnder(contract, movements.contracts)));
+        const auto settlementFee = brokerFees.For(costs::Trade::Shares(SharesUnder(contract, open->movements.contracts)));
         portfolio.Pay(settlementFee);
         ledger.Post(period.expiry, CashflowKind::Fee, -settlementFee);
-        movements.fees += settlementFee;
+        open->movements.fees += settlementFee;
 
         MoveOn(WheelEvent::Assigned);
-        return RowFor(period, state, movements, portfolio);
+        return RowFor(period, marks);
+    }
+
+    void Projection::Assess(const ProjectionPeriod& period, const core::Date& upTo)
+    {
+        if (!open->assessment.has_value() || open->assessment->on > upTo)
+            return;
+
+        auto& portfolio = Books().Holdings();
+
+        really_assert(open->assessment->on >= period.opened && open->assessment->on <= period.expiry);
+        really_assert(open->assessment->spot.GetCurrency() == portfolio.GetCurrency());
+
+        const auto on = open->assessment->on;
+        const auto charge = Books().Taxes().Charge(AssetsOf(portfolio, underlying, open->assessment->spot));
+        open->assessment.reset();
+
+        if (charge.Cents() == 0)
+            return;
+
+        portfolio.Pay(charge);
+        Books().Ledger().Post(on, CashflowKind::Tax, -charge);
+        open->movements.tax += charge;
+    }
+
+    ProjectionRow Projection::RowFor(const ProjectionPeriod& period, std::span<const SpotPrice> marks) const
+    {
+        const auto& portfolio = Books().Holdings();
+        const auto& movements = open->movements;
+
+        return { period.expiry, state, movements.contracts, movements.premium, movements.fees, movements.assignment, movements.tax, portfolio.Cash(), portfolio.Shares(underlying), Equity(portfolio, marks) };
     }
 
     bool Projection::Rolls(const ProjectionPeriod& period) const

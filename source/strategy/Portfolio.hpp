@@ -4,12 +4,14 @@
 #include "source/core/OptionContract.hpp"
 #include <cstdint>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace fin::strategy
 {
     struct ShareLot
     {
+        std::string underlying;
         std::int64_t quantity;
         core::Money pricePerShare;
     };
@@ -18,6 +20,12 @@ namespace fin::strategy
     {
         core::OptionContract contract;
         std::int64_t contracts;
+    };
+
+    struct SpotPrice
+    {
+        std::string underlying;
+        core::Money spot;
     };
 
     class Portfolio
@@ -30,9 +38,9 @@ namespace fin::strategy
         core::Money Collateral() const;
         core::Money FreeCash() const;
 
-        std::int64_t Shares() const;
-        std::int64_t CoveredShares() const;
-        std::int64_t UncoveredShares() const;
+        std::int64_t Shares(const std::string& underlying) const;
+        std::int64_t CoveredShares(const std::string& underlying) const;
+        std::int64_t UncoveredShares(const std::string& underlying) const;
 
         std::span<const ShareLot> Lots() const;
         std::span<const ShortOption> ShortPositions() const;
@@ -50,12 +58,13 @@ namespace fin::strategy
         explicit Portfolio(const core::Money& cash);
 
         void Open(const core::OptionContract& contract, std::int64_t contracts);
-        void Deliver(std::int64_t quantity);
+        void Deliver(const std::string& underlying, std::int64_t quantity);
 
         core::Money cash;
         std::vector<ShareLot> lots;
         std::vector<ShortOption> shorts;
     };
 
-    core::Money Equity(const Portfolio& portfolio, const core::Money& spot);
+    core::Money Equity(const Portfolio& portfolio, std::span<const SpotPrice> prices);
+    core::Money Equity(const Portfolio& portfolio, const std::string& underlying, const core::Money& spot);
 }

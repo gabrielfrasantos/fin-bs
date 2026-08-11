@@ -1,6 +1,8 @@
 #include "source/strategy/Portfolio.hpp"
 #include "infra/util/ReallyAssert.hpp"
 #include <algorithm>
+#include <array>
+#include <iterator>
 
 namespace fin::strategy
 {
@@ -28,6 +30,29 @@ namespace fin::strategy
             return std::find_if(positions.begin(), positions.end(), [&contract](const ShortOption& open)
                 {
                     return open.contract == contract;
+                });
+        }
+
+        const core::Money& SpotOf(std::span<const SpotPrice> prices, const std::string& underlying)
+        {
+            const auto price = std::find_if(prices.begin(), prices.end(), [&underlying](const SpotPrice& quoted)
+                {
+                    return quoted.underlying == underlying;
+                });
+
+            really_assert(price != prices.end());
+
+            return price->spot;
+        }
+
+        bool NamesEachUnderlyingOnce(std::span<const SpotPrice> prices)
+        {
+            return std::all_of(prices.begin(), prices.end(), [prices](const SpotPrice& price)
+                {
+                    return std::count_if(prices.begin(), prices.end(), [&price](const SpotPrice& other)
+                               {
+                                   return other.underlying == price.underlying;
+                               }) == 1;
                 });
         }
     }
@@ -68,30 +93,31 @@ namespace fin::strategy
         return cash - Collateral();
     }
 
-    std::int64_t Portfolio::Shares() const
+    std::int64_t Portfolio::Shares(const std::string& underlying) const
     {
         std::int64_t held = 0;
 
         for (const auto& lot : lots)
-            held += lot.quantity;
+            if (lot.underlying == underlying)
+                held += lot.quantity;
 
         return held;
     }
 
-    std::int64_t Portfolio::CoveredShares() const
+    std::int64_t Portfolio::CoveredShares(const std::string& underlying) const
     {
         std::int64_t covered = 0;
 
         for (const auto& position : shorts)
-            if (position.contract.Type() == core::OptionType::Call)
+            if (position.contract.Type() == core::OptionType::Call && position.contract.Underlying() == underlying)
                 covered += SharesUnder(position);
 
         return covered;
     }
 
-    std::int64_t Portfolio::UncoveredShares() const
+    std::int64_t Portfolio::UncoveredShares(const std::string& underlying) const
     {
-        return Shares() - CoveredShares();
+        return Shares(underlying) - CoveredShares(underlying);
     }
 
     std::span<const ShareLot> Portfolio::Lots() const
@@ -143,7 +169,7 @@ namespace fin::strategy
         really_assert(contract.Type() == core::OptionType::Call);
         really_assert(contract.Strike().GetCurrency() == GetCurrency());
         really_assert(contracts > 0);
-        really_assert(UncoveredShares() >= static_cast<std::int64_t>(contract.Multiplier()) * contracts);
+        really_assert(UncoveredShares(contract.Underlying()) >= static_cast<std::int64_t>(contract.Multiplier()) * contracts);
 
         Open(contract, contracts);
     }
@@ -169,11 +195,11 @@ namespace fin::strategy
         if (contract.Type() == core::OptionType::Put)
         {
             Pay(settlement);
-            lots.push_back({ quantity, contract.Strike() });
+            lots.push_back({ contract.Underlying(), quantity, contract.Strike() });
         }
         else
         {
-            Deliver(quantity);
+            Deliver(contract.Underlying(), quantity);
             Receive(settlement);
         }
     }
@@ -188,33 +214,52 @@ namespace fin::strategy
             position->contracts += contracts;
     }
 
-    void Portfolio::Deliver(std::int64_t quantity)
+    void Portfolio::Deliver(const std::string& underlying, std::int64_t quantity)
     {
-        really_assert(Shares() >= quantity);
+        really_assert(Shares(underlying) >= quantity);
 
-        while (quantity > 0)
+        for (auto lot = lots.begin(); lot != lots.end() && quantity > 0;)
         {
-            auto& lot = lots.front();
-            const auto delivered = std::min(quantity, lot.quantity);
+            if (lot->underlying != underlying)
+            {
+                ++lot;
+                continue;
+            }
 
-            lot.quantity -= delivered;
+            const auto delivered = std::min(quantity, lot->quantity);
+
+            lot->quantity -= delivered;
             quantity -= delivered;
 
-            if (lot.quantity == 0)
-                lots.erase(lots.begin());
+            lot = lot->quantity == 0 ? lots.erase(lot) : std::next(lot);
         }
     }
 
-    core::Money Equity(const Portfolio& portfolio, const core::Money& spot)
+    core::Money Equity(const Portfolio& portfolio, std::span<const SpotPrice> prices)
     {
-        really_assert(spot.GetCurrency() == portfolio.GetCurrency());
-        really_assert(spot.Cents() >= 0);
+        really_assert(NamesEachUnderlyingOnce(prices));
 
-        auto equity = portfolio.Cash() + spot * portfolio.Shares();
+        for (const auto& price : prices)
+        {
+            really_assert(price.spot.GetCurrency() == portfolio.GetCurrency());
+            really_assert(price.spot.Cents() >= 0);
+        }
+
+        auto equity = portfolio.Cash();
+
+        for (const auto& lot : portfolio.Lots())
+            equity += SpotOf(prices, lot.underlying) * lot.quantity;
 
         for (const auto& position : portfolio.ShortPositions())
-            equity -= IntrinsicLiability(position, spot);
+            equity -= IntrinsicLiability(position, SpotOf(prices, position.contract.Underlying()));
 
         return equity;
+    }
+
+    core::Money Equity(const Portfolio& portfolio, const std::string& underlying, const core::Money& spot)
+    {
+        const std::array quoted{ SpotPrice{ underlying, spot } };
+
+        return Equity(portfolio, quoted);
     }
 }

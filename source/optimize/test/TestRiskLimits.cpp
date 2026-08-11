@@ -23,7 +23,7 @@ namespace
 
     OutcomeDistribution Ran(std::int32_t assignments, double drawdown)
     {
-        return OutcomeDistribution::Of({ { .terminalEquity = Money::FromAmount(120000.00, Currency::Eur), .growthRate = 0.07, .cycles = cycles, .assignments = assignments, .maximumDrawdown = drawdown } });
+        return OutcomeDistribution::Of({ { .terminalEquity = Money::FromAmount(120000.00, Currency::Eur), .growthRate = 0.07, .positions = cycles, .assignments = assignments, .maximumDrawdown = drawdown } });
     }
 }
 

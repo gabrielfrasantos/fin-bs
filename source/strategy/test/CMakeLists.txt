@@ -8,6 +8,9 @@ target_link_libraries(fin.strategy_test PUBLIC
 )
 
 target_sources(fin.strategy_test PRIVATE
+    TestAccount.cpp
+    TestBook.cpp
+    TestCollateralAllocation.cpp
     TestCompoundingLedger.cpp
     TestPortfolio.cpp
     TestProjection.cpp

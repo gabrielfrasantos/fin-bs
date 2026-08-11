@@ -1,4 +1,5 @@
 #include "source/strategy/Portfolio.hpp"
+#include <array>
 #include <gtest/gtest.h>
 
 namespace
@@ -10,6 +11,7 @@ namespace
     using fin::core::OptionType;
     using fin::strategy::Equity;
     using fin::strategy::Portfolio;
+    using fin::strategy::SpotPrice;
 
     Money Euro(double amount)
     {
@@ -21,14 +23,24 @@ namespace
         return Date::FromYearMonthDay(2025, 6, 20);
     }
 
+    OptionContract Put(const std::string& underlying, double strike)
+    {
+        return OptionContract(underlying, Expiry(), Euro(strike), OptionType::Put);
+    }
+
+    OptionContract Call(const std::string& underlying, double strike)
+    {
+        return OptionContract(underlying, Expiry(), Euro(strike), OptionType::Call);
+    }
+
     OptionContract Put(double strike)
     {
-        return OptionContract("ACME", Expiry(), Euro(strike), OptionType::Put);
+        return Put("ACME", strike);
     }
 
     OptionContract Call(double strike)
     {
-        return OptionContract("ACME", Expiry(), Euro(strike), OptionType::Call);
+        return Call("ACME", strike);
     }
 
     class TestPortfolio
@@ -44,7 +56,7 @@ TEST_F(TestPortfolio, a_funded_portfolio_holds_nothing_but_cash)
     EXPECT_EQ(portfolio.Cash(), Euro(20000.00));
     EXPECT_EQ(portfolio.FreeCash(), Euro(20000.00));
     EXPECT_EQ(portfolio.Collateral(), Euro(0.00));
-    EXPECT_EQ(portfolio.Shares(), 0);
+    EXPECT_EQ(portfolio.Shares("ACME"), 0);
     EXPECT_TRUE(portfolio.Lots().empty());
     EXPECT_TRUE(portfolio.ShortPositions().empty());
 }
@@ -84,12 +96,12 @@ TEST_F(TestPortfolio, a_call_is_only_written_against_shares_that_nothing_else_co
     portfolio.SellPut(Put(40.00), 1);
     portfolio.Assign(Put(40.00));
 
-    EXPECT_EQ(portfolio.UncoveredShares(), 100);
+    EXPECT_EQ(portfolio.UncoveredShares("ACME"), 100);
 
     portfolio.SellCall(Call(45.00), 1);
 
-    EXPECT_EQ(portfolio.CoveredShares(), 100);
-    EXPECT_EQ(portfolio.UncoveredShares(), 0);
+    EXPECT_EQ(portfolio.CoveredShares("ACME"), 100);
+    EXPECT_EQ(portfolio.UncoveredShares("ACME"), 0);
     EXPECT_EQ(portfolio.Collateral(), Euro(0.00));
     EXPECT_DEATH(portfolio.SellCall(Call(50.00), 1), "");
 }
@@ -124,7 +136,8 @@ TEST_F(TestPortfolio, being_assigned_on_a_put_turns_the_reserved_cash_into_share
 
     EXPECT_EQ(portfolio.Cash(), Euro(12000.00));
     EXPECT_EQ(portfolio.Collateral(), Euro(0.00));
-    EXPECT_EQ(portfolio.Shares(), 200);
+    EXPECT_EQ(portfolio.Shares("ACME"), 200);
+    EXPECT_EQ(portfolio.Lots().front().underlying, "ACME");
     EXPECT_EQ(portfolio.Lots().front().pricePerShare, Euro(40.00));
     EXPECT_TRUE(portfolio.ShortPositions().empty());
 }
@@ -137,7 +150,7 @@ TEST_F(TestPortfolio, being_assigned_on_a_call_turns_the_shares_back_into_cash)
     portfolio.Assign(Call(45.00));
 
     EXPECT_EQ(portfolio.Cash(), Euro(21000.00));
-    EXPECT_EQ(portfolio.Shares(), 0);
+    EXPECT_EQ(portfolio.Shares("ACME"), 0);
     EXPECT_TRUE(portfolio.Lots().empty());
 }
 
@@ -147,11 +160,11 @@ TEST_F(TestPortfolio, assignment_moves_value_between_cash_and_shares_without_cre
 
     portfolio.SellPut(Put(40.00), 2);
 
-    const auto before = Equity(portfolio, spot);
+    const auto before = Equity(portfolio, "ACME", spot);
 
     portfolio.Assign(Put(40.00));
 
-    EXPECT_EQ(Equity(portfolio, spot), before);
+    EXPECT_EQ(Equity(portfolio, "ACME", spot), before);
 }
 
 TEST_F(TestPortfolio, shares_leave_the_portfolio_oldest_lot_first)
@@ -168,7 +181,7 @@ TEST_F(TestPortfolio, shares_leave_the_portfolio_oldest_lot_first)
 
     ASSERT_EQ(portfolio.Lots().size(), 1u);
     EXPECT_EQ(portfolio.Lots().front().pricePerShare, Euro(50.00));
-    EXPECT_EQ(portfolio.Shares(), 100);
+    EXPECT_EQ(portfolio.Shares("ACME"), 100);
 }
 
 TEST_F(TestPortfolio, closing_a_position_releases_its_collateral_without_moving_any_cash)
@@ -192,15 +205,108 @@ TEST_F(TestPortfolio, equity_marks_the_shares_at_what_they_are_worth_now)
     portfolio.SellPut(Put(40.00), 1);
     portfolio.Assign(Put(40.00));
 
-    EXPECT_EQ(Equity(portfolio, Euro(40.00)), Euro(20000.00));
-    EXPECT_EQ(Equity(portfolio, Euro(45.00)), Euro(20500.00));
-    EXPECT_EQ(Equity(portfolio, Euro(35.00)), Euro(19500.00));
+    EXPECT_EQ(Equity(portfolio, "ACME", Euro(40.00)), Euro(20000.00));
+    EXPECT_EQ(Equity(portfolio, "ACME", Euro(45.00)), Euro(20500.00));
+    EXPECT_EQ(Equity(portfolio, "ACME", Euro(35.00)), Euro(19500.00));
 }
 
 TEST_F(TestPortfolio, equity_carries_a_short_position_at_what_it_would_cost_to_settle)
 {
     portfolio.SellPut(Put(40.00), 2);
 
-    EXPECT_EQ(Equity(portfolio, Euro(45.00)), Euro(20000.00));
-    EXPECT_EQ(Equity(portfolio, Euro(38.00)), Euro(19600.00));
+    EXPECT_EQ(Equity(portfolio, "ACME", Euro(45.00)), Euro(20000.00));
+    EXPECT_EQ(Equity(portfolio, "ACME", Euro(38.00)), Euro(19600.00));
+}
+
+TEST_F(TestPortfolio, shares_of_one_underlying_do_not_cover_a_call_on_another)
+{
+    portfolio.SellPut(Put("ACME", 40.00), 1);
+    portfolio.Assign(Put("ACME", 40.00));
+
+    EXPECT_EQ(portfolio.Shares("ACME"), 100);
+    EXPECT_EQ(portfolio.Shares("BETA"), 0);
+    EXPECT_EQ(portfolio.UncoveredShares("BETA"), 0);
+    EXPECT_DEATH(portfolio.SellCall(Call("BETA", 45.00), 1), "");
+}
+
+TEST_F(TestPortfolio, a_call_covered_by_one_underlying_leaves_the_other_free_to_be_written_against)
+{
+    portfolio.SellPut(Put("ACME", 40.00), 1);
+    portfolio.Assign(Put("ACME", 40.00));
+    portfolio.SellPut(Put("BETA", 50.00), 1);
+    portfolio.Assign(Put("BETA", 50.00));
+    portfolio.SellCall(Call("ACME", 45.00), 1);
+
+    EXPECT_EQ(portfolio.CoveredShares("ACME"), 100);
+    EXPECT_EQ(portfolio.UncoveredShares("ACME"), 0);
+    EXPECT_EQ(portfolio.CoveredShares("BETA"), 0);
+    EXPECT_EQ(portfolio.UncoveredShares("BETA"), 100);
+
+    portfolio.SellCall(Call("BETA", 55.00), 1);
+
+    EXPECT_EQ(portfolio.CoveredShares("BETA"), 100);
+}
+
+TEST_F(TestPortfolio, shares_leave_the_underlying_they_belong_to_oldest_lot_first)
+{
+    portfolio.SellPut(Put("ACME", 40.00), 1);
+    portfolio.Assign(Put("ACME", 40.00));
+    portfolio.SellPut(Put("BETA", 50.00), 1);
+    portfolio.Assign(Put("BETA", 50.00));
+    portfolio.SellPut(Put("ACME", 60.00), 1);
+    portfolio.Assign(Put("ACME", 60.00));
+
+    portfolio.SellCall(Call("ACME", 70.00), 1);
+    portfolio.Assign(Call("ACME", 70.00));
+
+    ASSERT_EQ(portfolio.Lots().size(), 2u);
+    EXPECT_EQ(portfolio.Lots().front().underlying, "BETA");
+    EXPECT_EQ(portfolio.Lots().back().pricePerShare, Euro(60.00));
+    EXPECT_EQ(portfolio.Shares("ACME"), 100);
+    EXPECT_EQ(portfolio.Shares("BETA"), 100);
+}
+
+TEST_F(TestPortfolio, equity_values_every_underlying_at_its_own_price)
+{
+    portfolio.SellPut(Put("ACME", 40.00), 1);
+    portfolio.Assign(Put("ACME", 40.00));
+    portfolio.SellPut(Put("BETA", 50.00), 1);
+    portfolio.Assign(Put("BETA", 50.00));
+
+    const std::array prices{ SpotPrice{ "ACME", Euro(45.00) }, SpotPrice{ "BETA", Euro(48.00) } };
+
+    EXPECT_EQ(Equity(portfolio, prices), Euro(20300.00));
+}
+
+TEST_F(TestPortfolio, assignment_creates_no_value_while_another_underlying_is_held)
+{
+    portfolio.SellPut(Put("BETA", 50.00), 1);
+    portfolio.Assign(Put("BETA", 50.00));
+    portfolio.SellPut(Put("ACME", 40.00), 2);
+
+    const std::array prices{ SpotPrice{ "ACME", Euro(36.50) }, SpotPrice{ "BETA", Euro(52.25) } };
+    const auto before = Equity(portfolio, prices);
+
+    portfolio.Assign(Put("ACME", 40.00));
+
+    EXPECT_EQ(Equity(portfolio, prices), before);
+}
+
+TEST_F(TestPortfolio, a_holding_that_was_given_no_price_cannot_be_valued)
+{
+    portfolio.SellPut(Put("ACME", 40.00), 1);
+    portfolio.Assign(Put("ACME", 40.00));
+    portfolio.SellPut(Put("BETA", 50.00), 1);
+
+    const std::array quoted{ SpotPrice{ "ACME", Euro(45.00) } };
+
+    EXPECT_DEATH(Equity(portfolio, quoted), "");
+    EXPECT_DEATH(Equity(portfolio, "BETA", Euro(50.00)), "");
+}
+
+TEST_F(TestPortfolio, an_underlying_cannot_be_given_two_prices)
+{
+    const std::array twice{ SpotPrice{ "ACME", Euro(45.00) }, SpotPrice{ "ACME", Euro(46.00) } };
+
+    EXPECT_DEATH(Equity(portfolio, twice), "");
 }

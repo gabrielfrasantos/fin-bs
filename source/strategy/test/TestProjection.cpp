@@ -15,11 +15,13 @@ namespace
     using fin::core::OptionType;
     using fin::costs::BrokerFees;
     using fin::costs::FeeSchedule;
+    using fin::strategy::Account;
     using fin::strategy::CashflowKind;
     using fin::strategy::Portfolio;
     using fin::strategy::Projection;
     using fin::strategy::ProjectionPeriod;
     using fin::strategy::ProjectionRow;
+    using fin::strategy::Reconciles;
     using fin::strategy::ReinvestmentPolicy;
     using fin::strategy::RollObservation;
     using fin::strategy::RollRules;
@@ -72,6 +74,11 @@ namespace
     Projection Wheel(const Money& capital, const ReinvestmentPolicy& policy, const RollRules& rules)
     {
         return Projection("ACME", Portfolio::Funded(capital), policy, rules, Fees(), Rules());
+    }
+
+    Projection WheelOver(Account& account, const ReinvestmentPolicy& policy, const RollRules& rules)
+    {
+        return Projection("ACME", account, policy, rules, Fees());
     }
 
     class TestProjection
@@ -194,7 +201,53 @@ TEST_F(TestProjectionOverThreeYears, the_projection_ends_where_the_last_row_says
 {
     EXPECT_EQ(wheel.State(), rows.back().state);
     EXPECT_EQ(wheel.Holdings().Cash(), rows.back().cash);
-    EXPECT_EQ(wheel.Holdings().Shares(), rows.back().shares);
+    EXPECT_EQ(wheel.Holdings().Shares("ACME"), rows.back().shares);
+}
+
+TEST_F(TestProjectionOverThreeYears, a_wheel_run_over_an_account_it_does_not_own_produces_the_same_table)
+{
+    Account account(Portfolio::Funded(capital), Rules());
+    auto lodger = WheelOver(account, ReinvestmentPolicy::WithCashBuffer(0), NeverRolls());
+
+    EXPECT_EQ(lodger.Over(periods), rows);
+    EXPECT_EQ(account.Holdings().Cash(), wheel.Holdings().Cash());
+    EXPECT_EQ(account.Ledger().Net(), wheel.Ledger().Net());
+    EXPECT_TRUE(Reconciles(account));
+}
+
+TEST_F(TestProjectionOverThreeYears, a_wheel_reports_the_account_it_was_given_rather_than_one_of_its_own)
+{
+    Account account(Portfolio::Funded(capital), Rules());
+    auto lodger = WheelOver(account, ReinvestmentPolicy::WithCashBuffer(0), NeverRolls());
+
+    lodger.Over(periods);
+
+    EXPECT_EQ(&lodger.Holdings(), &account.Holdings());
+    EXPECT_EQ(&lodger.Ledger(), &account.Ledger());
+}
+
+TEST_F(TestProjectionOverThreeYears, a_copy_of_a_wheel_that_owns_its_account_leaves_the_original_alone)
+{
+    auto original = Wheel(capital, ReinvestmentPolicy::WithCashBuffer(0), NeverRolls());
+    auto copy = original;
+
+    copy.Over(periods);
+
+    EXPECT_EQ(original.Holdings().Cash(), capital);
+    EXPECT_TRUE(original.Ledger().Entries().empty());
+    EXPECT_EQ(copy.Holdings().Cash(), rows.back().cash);
+}
+
+TEST_F(TestProjectionOverThreeYears, a_copy_of_a_wheel_that_was_lent_an_account_is_still_lent_the_same_one)
+{
+    Account account(Portfolio::Funded(capital), Rules());
+    auto lodger = WheelOver(account, ReinvestmentPolicy::WithCashBuffer(0), NeverRolls());
+    auto copy = lodger;
+
+    copy.Over(periods);
+
+    EXPECT_EQ(account.Holdings().Cash(), rows.back().cash);
+    EXPECT_EQ(&copy.Holdings(), &account.Holdings());
 }
 
 TEST_F(TestProjectionOverThreeYears, a_projection_with_no_reference_date_in_it_is_charged_no_tax)
@@ -293,6 +346,17 @@ TEST_F(TestProjection, a_projection_needs_an_underlying_and_a_portfolio_with_not
 
     EXPECT_DEATH(Projection("", Portfolio::Funded(Euro(10000.00)), fullyInvested, NeverRolls(), Fees(), Rules()), "");
     EXPECT_DEATH(Projection("ACME", open, fullyInvested, NeverRolls(), Fees(), Rules()), "");
+}
+
+TEST_F(TestProjection, a_wheel_is_only_refused_an_account_that_is_already_short_of_its_own_underlying)
+{
+    Account account(Portfolio::Funded(Euro(10000.00)), Rules());
+    account.Holdings().SellPut(OptionContract("BETA", On(2025, 7, 18), Euro(40.00), OptionType::Put), 1);
+
+    const Projection acme("ACME", account, fullyInvested, NeverRolls(), Fees());
+
+    EXPECT_EQ(acme.State(), WheelState::Cash);
+    EXPECT_DEATH(Projection("BETA", account, fullyInvested, NeverRolls(), Fees()), "");
 }
 
 TEST_F(TestProjection, the_annual_charge_falls_on_what_is_held_on_the_reference_date)

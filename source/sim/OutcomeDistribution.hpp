@@ -10,7 +10,7 @@ namespace fin::sim
     {
         core::Money terminalEquity;
         double growthRate;
-        std::int32_t cycles;
+        std::int32_t positions;
         std::int32_t assignments;
         double maximumDrawdown;
     };
