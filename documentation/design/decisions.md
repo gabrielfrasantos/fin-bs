@@ -851,3 +851,128 @@ having to round an interpolated cash amount, which would put a rounding rule in 
 reporting step. The cost is granularity: with few paths the percentiles are coarse and neighbouring
 ones coincide, which is a true statement about how little a small run knows rather than a defect to
 be smoothed over.
+
+---
+
+## D36 - How much is committed is one lever, not two
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** A search over how a wheel is run needs a way to say how large the positions should be.
+The two obvious ways to say it are the number of contracts written per cycle and the fraction of
+free cash held back rather than committed as collateral. Under
+[D21](#d21---a-short-position-reserves-cash-and-the-reservation-is-what-makes-it-covered) a short
+position is secured by cash, so the number of contracts is the uncommitted cash divided by what one
+contract must collateralise, rounded down. The two are the same statement.
+
+**Decision.** The search chooses a cash buffer and never a contract count. The three things it
+chooses are the delta options are written at, the buffer, and the delta at which a position is
+rolled away from assignment.
+
+**Consequences.** There is no way to state two answers to one question, and no rule needed for which
+of them wins. The buffer is also the form that survives compounding: a contract count fixed at the
+start of a projection stops binding as soon as the capital has grown, whereas a fraction held back
+describes the same policy at every size. The cost is that a caller who thinks in contracts has to
+convert, and that a deliberately under-sized position - writing fewer contracts than the cash allows
+for a reason outside this model - cannot be expressed except as a buffer that is larger than the
+cash actually reserved for the charge it is there to meet.
+
+**Reconsider if** positions stop being secured by cash, at which point the number of contracts
+becomes free of the cash held and is a lever in its own right.
+
+---
+
+## D37 - The search runs on fractions of a stated range
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** The three levers differ in scale by four orders of magnitude - a delta of a third
+against a buffer of several hundred basis points. A single step length applied to all three is
+either useless on one or catastrophic on another. Separately, every lever has values that are
+meaningless or dangerous, and a search that wanders into them produces a recommendation nobody can
+act on.
+
+**Decision.** A caller states the lowest and the highest setting worth considering. The search is
+carried out on the fraction of that range each lever sits at, and a point outside the range is read
+as the nearest point on it.
+
+**Consequences.** One step length is meaningful for all three levers, and every setting the search
+can reach, evaluate or report is one the caller declared acceptable. A bound behaves like a bound
+rather than like a rejection: a step that would leave the range arrives at its edge, the score stops
+changing there, and the search settles. The cost is that the range is now itself a risk decision,
+made before the search rather than by it - and, since the best setting is usually on a bound, one
+that shapes the answer more than it looks like it should.
+
+---
+
+## D38 - Every setting is scored against the same futures
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** The score of a setting is the mean growth rate of a finite number of simulated runs.
+Simulated independently, two neighbouring settings differ in score by about a tenth of what the
+sampling error of either score is, so a search comparing them is following noise. The score is also
+a staircase rather than a curve: contracts are whole, strikes are listed and money is counted in
+minor units, so a small change of setting usually produces the identical run and a difference of
+exactly zero.
+
+**Decision.** The seed belongs to the description of the experiment, not to the scoring, so every
+candidate is simulated on the same price paths and the score is a deterministic function of the
+setting. The slope of the score is a difference taken over a sixteenth of the range - a step large
+enough that the run on either side of it is a genuinely different run.
+
+**Consequences.** What a comparison measures is the difference between two strategies rather than
+the difference between two samples, and the comparison is usable at a path count far below what
+either score alone would need. A search is reproducible to the last digit, which is what makes a
+recommendation testable at all. The costs are two. The slope is a secant of a staircase and not a
+derivative, so the search walks towards a better setting rather than converging on an optimum. And
+the shared paths are a shared assumption: a setting that happens to suit the sampled futures is
+flattered consistently rather than averaged out, so a path count remains a stated part of the
+experiment.
+
+---
+
+## D39 - A limit is a charge on the score, not a wall
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** The setting that grows a portfolio fastest commits every unit of cash it is allowed to,
+and pays for it with a drawdown of about half the portfolio. A score that only measures growth
+recommends that every time. The obvious remedy is to refuse any setting that breaks a stated limit.
+
+**Decision.** A limit on the deepest drawdown and on the assignment rate enters the quantity being
+minimised as a charge proportional to the amount by which the limit was passed, and costs nothing at
+all while there is slack. A search under limits no setting can meet still returns the least bad
+setting, reported as infeasible, together with which limits it is against.
+
+**Consequences.** Within the acceptable region the search maximises growth and nothing else, and
+outside it the search is pushed back towards the boundary rather than over a cliff at it. A caller
+asking for something impossible is told how close it is possible to get, which is the case where a
+refusal would be least useful. The cost is that the charge per unit of excess is an exchange rate
+between a growth rate and a drawdown - a stated preference, not a derived quantity - and setting it
+too low silently sells the limit for a fraction of a percent of return.
+
+---
+
+## D40 - A recommendation is charged for changing the setting, not for its size
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** A search over three levers on a noisy staircase will happily move all three by amounts
+that are within its own resolution, and present the result as a recommendation. The usual way to
+temper a search is to charge for the size of what it chooses, but the size of a target delta is not
+a thing anybody wants minimised: such a charge would pull every recommendation towards writing
+nothing.
+
+**Decision.** The search is expressed as a distance from the setting already in use, and it is that
+distance which may be charged for - either in proportion to its square, which shrinks every change
+towards nothing, or in proportion to its magnitude, which leaves a change out altogether unless it
+earns more than it costs.
+
+**Consequences.** The preference expressed is one that exists: a recommendation to leave things
+alone is worth more than a recommendation to alter three numbers for a hundredth of a percent, and a
+recommendation to change one lever is easier to act on, and to argue with, than one that changes all
+three. With both charges set to nothing the search is unconstrained in this respect, so the
+behaviour is opt-in. The cost is that a caller must supply a setting they run today even when they
+have none, and that a charge large enough to suppress a change also biases the answer towards a
+starting point that may simply be bad.

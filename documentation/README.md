@@ -53,6 +53,8 @@ one day reverse.
   and why it cannot be handed an income.
 - [Simulation contracts](design/simulation.md) - what a simulated run must be given, what it
   guarantees about reproducibility, and which options it refuses to write or close.
+- [Optimisation contracts](design/optimization.md) - what a search over a strategy must be given,
+  what it guarantees about an answer, and the size of position it refuses to let anyone state twice.
 - [Decision log](design/decisions.md) - numbered, dated modelling decisions.
 
 ### Theory
@@ -92,6 +94,9 @@ one day reverse.
   income is large relative to its capital.
 - [Monte-Carlo projection of a wheel](theory/monte-carlo-simulation.md) - the price process, why the
   path is sampled exactly, how many paths an average needs, and how outcomes become percentiles.
+- [Searching for a setting](theory/searching-for-a-setting.md) - the three levers a wheel is run
+  with, why every candidate is scored against the same futures, and how a risk limit becomes part of
+  the quantity being maximised.
 
 ### Validation
 

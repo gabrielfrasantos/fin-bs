@@ -328,11 +328,24 @@ Written so far: [quantities and their conventions](documentation/design/quantiti
 - Design: [simulation contracts](documentation/design/simulation.md); theory:
   [Monte-Carlo projection of a wheel](documentation/theory/monte-carlo-simulation.md).
 
-### 4.7 Optimization (`source/optimize/`)
-- `StrikeSizingOptimizer`: uses toolbox **Gradient Descent** with **L1/L2 regularization** to pick
-  {strike delta, number of contracts, cash buffer} maximizing after-tax CAGR subject to a max
-  drawdown / assignment-probability constraint.
-- **Tests:** on a convex synthetic objective, optimizer finds the known optimum.
+### 4.7 Optimization (`source/optimize/`) — implemented
+- `StrategySetting`: the three choices a run makes — the delta options are written at, the fraction
+  of free cash held back, and the delta at which a position is rolled away — together with the range
+  of settings worth considering and the mapping between a setting and its place in that range.
+- `StrategyObjective`: scores a setting by simulating the wheel under it, from a fixed seed, and
+  reports the mean after-cost, after-tax growth rate less a charge for whatever risk limit it passed.
+  Its slope is a difference taken over a step large enough that the run on either side of it differs.
+- `RiskLimits`: the deepest drawdown and the highest assignment rate that are acceptable, the amount
+  by which an outcome passed them, and what that costs.
+- `StrikeSizingOptimizer`: walks downhill with the toolbox **gradient descent**, over the distance
+  from the setting already in use, which the toolbox **L1/L2 regularization** may charge for.
+- `Recommendation`: the setting arrived at, what it achieved, and which limits it is up against.
+- **Tests:** the known floor of a convex bowl is found, and found on the nearest face when it lies
+  outside the range; the shrunk and the soft-thresholded answers match their closed forms; a setting
+  is scored identically every time it is asked for; a drawdown limit is met by holding back cash and
+  an assignment limit by rolling sooner, each paid for in growth.
+- Design: [optimisation contracts](documentation/design/optimization.md); theory:
+  [searching for a setting](documentation/theory/searching-for-a-setting.md).
 
 ---
 
@@ -628,14 +641,47 @@ in the simulation module, green in both Debug and Release.
 
 ---
 
-### Epic 8 — Optimizer (M6)
+### Epic 8 — Optimizer (M6) — **complete**
 
-| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
-|---|---|---|---|---|
-| T8.1 | Objective adapter | `optimize/StrategyObjective.hpp` implementing the toolbox `ObjectiveFunction` interface over `{target delta, contract count, cash buffer}` → after-tax CAGR. Tests: objective is finite and deterministic for a fixed seed | T7.4, T6.4 | M |
-| T8.2 | Optimizer wrapper | `optimize/StrikeSizingOptimizer.hpp` on toolbox `GradientDescent` + L1/L2 regularization. Tests: on a **convex synthetic** objective the known optimum is found within tolerance | T8.1 | M |
-| T8.3 | Constraints | Penalty terms for max drawdown and assignment probability. Tests: a constraint-violating optimum is rejected in favour of a feasible one | T8.2 | M |
-| T8.4 | Recommendation output | `optimize/Recommendation.hpp` — chosen delta/contracts/buffer plus the achieved objective and binding constraints. Tests: output is reproducible for a fixed seed | T8.3 | S |
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
+|---|---|---|---|---|---|
+| T8.1 | Objective adapter | `optimize/StrategyObjective.hpp` implementing the toolbox `ObjectiveFunction` interface over `{target delta, contract count, cash buffer}` → after-tax CAGR. Tests: objective is finite and deterministic for a fixed seed | T7.4, T6.4 | M | **done** |
+| T8.2 | Optimizer wrapper | `optimize/StrikeSizingOptimizer.hpp` on toolbox `GradientDescent` + L1/L2 regularization. Tests: on a **convex synthetic** objective the known optimum is found within tolerance | T8.1 | M | **done** |
+| T8.3 | Constraints | Penalty terms for max drawdown and assignment probability. Tests: a constraint-violating optimum is rejected in favour of a feasible one | T8.2 | M | **done** |
+| T8.4 | Recommendation output | `optimize/Recommendation.hpp` — chosen delta/contracts/buffer plus the achieved objective and binding constraints. Tests: output is reproducible for a fixed seed | T8.3 | S | **done** |
+| T8.5 | Epic 8 documentation | `design/optimization.md`, `theory/searching-for-a-setting.md`, decision log entries D36-D40 | T8.1-T8.4 | M | **done** |
+
+**Exit criteria (met):** a search over how the wheel is run returns a setting that the stated range
+could have produced, the growth it achieved, and which risk limits it is up against; the same
+experiment returns the same setting to the last digit; on a convex synthetic objective the known
+optimum is found, and the shrunk and soft-thresholded answers match their closed forms exactly; a
+drawdown limit is met by holding back cash and an assignment limit by rolling sooner, each at a
+measured cost in growth. 44 tests in the optimisation module, green in both Debug and Release.
+
+> **A contract count is not a lever.** A cash-secured position writes as many contracts as its
+> uncommitted cash can collateralise ([D21](documentation/design/decisions.md)), so choosing a count
+> and choosing a cash buffer are the same choice written twice
+> ([D36](documentation/design/decisions.md)). The three chosen are the target delta, the buffer, and
+> the delta at which a position is rolled away - the last being the lever that trades premium against
+> assignment, and therefore the one an assignment limit acts on.
+
+> **Every candidate is scored against the same futures.** The seed belongs to the experiment, not to
+> the scoring ([D38](documentation/design/decisions.md)). What a comparison then measures is the
+> difference between two strategies rather than between two samples, which is what makes a search
+> usable at 64 paths at all. The same decision fixes the other half of the problem: the score is a
+> staircase, because contracts are whole and strikes are listed, so its slope is a difference taken
+> over a sixteenth of the range rather than over an infinitesimal, which would be exactly zero.
+
+> **Deviations from the acceptance criteria.** T8.1's parameter vector is `{target delta, cash
+> buffer, roll delta limit}` rather than `{target delta, contract count, cash buffer}`, for the
+> reason above. The toolbox objective interface is implemented, but behind an interface of this
+> project's own, so that no toolbox type reaches a public API (§0.2). T8.2's regularization is
+> applied to the *change* to the setting rather than to the setting itself
+> ([D40](documentation/design/decisions.md)): charging for the size of a target delta would pull
+> every recommendation towards writing nothing, which is not a preference anybody expressed. T8.3's
+> penalties are linear in the excess and never refuse a setting outright
+> ([D39](documentation/design/decisions.md)), so a search under limits no setting can meet still
+> reports how close it is possible to get.
 
 ---
 
@@ -660,7 +706,7 @@ Epic 1 → Epic 2 → Epic 3 → Epic 4 → Epic 5 → Epic 6 → Epic 7 → Epi
 The only useful reorderings: T9.1/T9.2 (loaders) can be pulled forward to feed real data into Epic 3,
 and Epic 4 can slip after Epic 5 if the ledger initially runs fee-free.
 
-**Next task to pick up:** T8.1 (`StrategyObjective`), followed by T8.2 (`StrikeSizingOptimizer`).
+**Next task to pick up:** T9.2 (`PriceCsvLoader`), followed by T9.3 (`ChainCsvLoader`).
 
 ---
 
