@@ -8,6 +8,7 @@ target_include_directories(fin.io PUBLIC
 target_link_libraries(fin.io PUBLIC
     fin.core
     fin.costs
+    fin.tax
 )
 
 target_link_libraries(fin.io PRIVATE
@@ -17,6 +18,8 @@ target_link_libraries(fin.io PRIVATE
 target_sources(fin.io PRIVATE
     BrokerConfig.cpp
     BrokerConfig.hpp
+    TaxConfig.cpp
+    TaxConfig.hpp
 )
 
 add_subdirectory(test)

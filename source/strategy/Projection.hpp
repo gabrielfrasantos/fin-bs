@@ -9,6 +9,7 @@
 #include "source/strategy/ReinvestmentPolicy.hpp"
 #include "source/strategy/RollRules.hpp"
 #include "source/strategy/WheelEngine.hpp"
+#include "source/tax/Box3TaxModel.hpp"
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -24,6 +25,12 @@ namespace fin::strategy
         core::Delta delta;
     };
 
+    struct TaxObservation
+    {
+        core::Date on;
+        core::Money spot;
+    };
+
     struct ProjectionPeriod
     {
         core::Date opened;
@@ -32,6 +39,7 @@ namespace fin::strategy
         double premiumPerShare;
         core::Money spotAtExpiry;
         std::optional<RollObservation> observed;
+        std::optional<TaxObservation> assessed;
     };
 
     struct ProjectionRow
@@ -42,6 +50,7 @@ namespace fin::strategy
         core::Money premium;
         core::Money fees;
         core::Money assignment;
+        core::Money tax;
         core::Money cash;
         std::int64_t shares;
         core::Money equity;
@@ -50,7 +59,7 @@ namespace fin::strategy
     class Projection
     {
     public:
-        Projection(std::string underlying, const Portfolio& start, const ReinvestmentPolicy& policy, const RollRules& rules, const costs::BrokerFees& brokerFees);
+        Projection(std::string underlying, const Portfolio& start, const ReinvestmentPolicy& policy, const RollRules& rules, const costs::BrokerFees& brokerFees, const tax::Box3TaxModel& taxes);
 
         std::vector<ProjectionRow> Over(std::span<const ProjectionPeriod> periods);
 
@@ -68,6 +77,7 @@ namespace fin::strategy
         ReinvestmentPolicy policy;
         RollRules rules;
         costs::BrokerFees brokerFees;
+        tax::Box3TaxModel taxes;
         CompoundingLedger ledger;
         WheelState state;
     };

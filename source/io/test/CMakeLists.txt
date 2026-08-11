@@ -13,4 +13,5 @@ target_compile_definitions(fin.io_test PRIVATE
 
 target_sources(fin.io_test PRIVATE
     TestBrokerConfig.cpp
+    TestTaxConfig.cpp
 )

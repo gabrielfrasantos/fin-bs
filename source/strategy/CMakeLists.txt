@@ -9,6 +9,7 @@ target_link_libraries(fin.strategy PUBLIC
     fin.core
     fin.costs
     fin.pricing
+    fin.tax
 )
 
 target_sources(fin.strategy PRIVATE
