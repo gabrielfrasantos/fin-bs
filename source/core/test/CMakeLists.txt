@@ -8,5 +8,12 @@ target_link_libraries(fin.core_test PUBLIC
 )
 
 target_sources(fin.core_test PRIVATE
+    TestDate.cpp
+    TestDayCount.cpp
+    TestDelta.cpp
+    TestMoney.cpp
+    TestOptionContract.cpp
+    TestRate.cpp
     TestToolboxLinkage.cpp
+    TestVolatility.cpp
 )

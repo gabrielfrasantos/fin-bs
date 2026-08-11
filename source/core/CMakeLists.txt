@@ -10,4 +10,14 @@ target_link_libraries(fin.core INTERFACE
     numerical.math
 )
 
+target_sources(fin.core PRIVATE
+    Date.hpp
+    DayCount.hpp
+    Delta.hpp
+    Money.hpp
+    OptionContract.hpp
+    Rate.hpp
+    Volatility.hpp
+)
+
 add_subdirectory(test)

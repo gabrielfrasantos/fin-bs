@@ -44,9 +44,9 @@ simulator. Do not reintroduce them.
 - **Toolbox types stay inside their module.** `numerical::`/`math::` types must not appear in a
   public `fin::` API; wrap them.
 - One public type per header, PascalCase filenames, `namespace fin::<module>`.
-- **No `#pragma once`** - `.github/linters/goodcheck.yml` fails the build on it. Use include
-  guards: `#ifndef FIN_<MODULE>_<TYPE>_HPP`. (The vendored toolbox uses `#pragma once` and is
-  excluded from that rule; our code is not.)
+- Headers use `#pragma once`.
+- Code carries no comments: names, types and tests are the documentation. The *why* lives in
+  `documentation/`, which is written in domain terms and never refers to code.
 - Heap use is allowed (this is a desktop tool), but prefer value semantics and bounded containers
   where it costs nothing.
 

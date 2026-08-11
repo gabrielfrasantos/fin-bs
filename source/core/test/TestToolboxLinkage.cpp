@@ -4,8 +4,6 @@
 
 namespace
 {
-    // Guards the numerical-toolbox submodule wiring: the Black-Scholes normal CDF
-    // (see PLAN.md T2.1) is built on math::Erfc, so linkage is checked through it.
     float StandardNormalCdf(float x)
     {
         return 0.5f * math::Erfc(-x / std::numbers::sqrt2_v<float>);
