@@ -407,16 +407,30 @@ carries its unit and every refusal is specified by an `EXPECT_DEATH`.
 
 ---
 
-### Epic 3 — Estimation (M2) — *toolbox-backed*
+### Epic 3 — Estimation (M2) — **complete**
 
-| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
-|---|---|---|---|---|
-| T3.1 | Synthetic GBM generator | `estimation/test_doubles/GbmSeries.hpp` — deterministic seeded GBM with known μ/σ. This is a **test double built first**, so every later estimator has ground truth | T1.2 | S |
-| T3.2 | Log returns + historical σ | `estimation/LogReturns.hpp`, `HistoricalVolatility.hpp` (sample stddev × √annualization factor). Tests: recover σ from T3.1 within 5% at n=5000; zero-variance series → 0 | T3.1 | S |
-| T3.3 | EMA volatility | `estimation/EmaVolatilityEstimator.hpp` wrapping the toolbox `ExponentialMovingAverage` filter. Tests: step change in σ is tracked within the expected time constant; steady-state matches T3.2 | T3.2 | M |
-| T3.4 | Drift estimator | `estimation/DriftEstimator.hpp` — log-price vs. time via toolbox `LinearRegression`, with `TotalLeastSquares` as a selectable variant. Tests: recover μ from T3.1; TLS beats OLS when the time axis is perturbed | T3.1 | M |
-| T3.5 | Online/rolling σ | `estimation/RlsVolatilityEstimator.hpp` on toolbox `RecursiveLeastSquares`. Tests: converges to the batch estimate of T3.2; forgetting factor tracks a regime switch | T3.2 | M |
-| T3.6 | Estimator facade | `estimation/MarketParameters.hpp` — one call takes a price series and returns `{drift, volatility, dividendYield}` in `fin::` units (no toolbox types leaked). Tests: facade output equals the underlying estimators | T3.2–T3.5 | S |
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
+|---|---|---|---|---|---|
+| T3.1 | Synthetic GBM generator | `estimation/test_doubles/GbmSeries.hpp` — deterministic seeded GBM with known μ/σ, on a business-day grid so the observation frequency is exactly 252. This is a **test double built first**, so every later estimator has ground truth | T1.2 | S | **done** |
+| T3.2 | Log returns + historical σ | `estimation/PriceSeries.hpp` (dated closes, validated once, deriving their own periods-per-year), `estimation/LogReturns.hpp`, `HistoricalVolatility.hpp` (sample stddev × √annualization factor). Tests: recover σ from T3.1 within 5% at n=5000; zero-variance series → 0 | T3.1 | S | **done** |
+| T3.3 | EMA volatility | `estimation/EmaVolatilityEstimator.hpp` wrapping the toolbox `ExponentialMovingAverage` filter. Tests: step change in σ decays at exactly the configured half-life; steady state matches T3.2 | T3.2 | M | **done** |
+| T3.4 | Drift estimator | `estimation/DriftEstimator.hpp` — log-price vs. time, delegating to a `LineFit` interface with `OrdinaryLeastSquaresFit` and `TotalLeastSquaresFit` adapters over the toolbox `LinearRegression` / `TotalLeastSquares`. Tests: recover μ from T3.1; the two agree on a near-deterministic path and the orthogonal fit is the steeper one on a noisy path | T3.1 | M | **done** |
+| T3.5 | Online/rolling σ | `estimation/RlsVolatilityEstimator.hpp` on toolbox `RecursiveLeastSquares`. Tests: without forgetting it equals the batch estimate of T3.2; the forgetting factor tracks a regime switch | T3.2 | M | **done** |
+| T3.6 | Estimator facade | `estimation/MarketParameters.hpp` — one call takes a price series and returns `{drift, volatility, dividendYield}` in `fin::` units (no toolbox types leaked). Tests: facade output equals the underlying estimators, with the variance correction applied once | T3.2–T3.5 | S | **done** |
+| T3.7 | Epic 3 documentation | `design/estimation.md`, three `theory/` notes (log returns and realised volatility, drift estimation, exponentially weighted volatility), decision log entries D11–D15 | T3.1–T3.6 | M | **done** |
+
+**Exit criteria (met):** `fin.estimation` turns a dated price series into a drift, a volatility and a
+carried dividend yield; 85 tests green in both Debug and Release; each published worked example is
+reproduced by a test.
+
+> **Deviation from the original acceptance criteria for T3.4.** The plan asked for a test showing
+> that total least squares beats ordinary least squares "when the time axis is perturbed". That case
+> cannot be constructed for a dated series: recorded dates must be distinct and increasing, so any
+> error in them is bounded by the observation spacing, and the resulting attenuation of the ordinary
+> fit is of the order of the reciprocal of the square of the number of observations — immeasurable.
+> On a real path the orthogonal fit is instead the *worse* estimator, reporting a drift larger by the
+> reciprocal of the correlation. It is kept as a selectable variant and the reasoning is recorded in
+> [decision D13](documentation/design/decisions.md).
 
 ---
 
@@ -500,8 +514,7 @@ Epic 1 → Epic 2 → Epic 3 → Epic 4 → Epic 5 → Epic 6 → Epic 7 → Epi
 The only useful reorderings: T9.1/T9.2 (loaders) can be pulled forward to feed real data into Epic 3,
 and Epic 4 can slip after Epic 5 if the ledger initially runs fee-free.
 
-**Next task to pick up:** T2.1 (`NormalDistribution`), followed by
-`documentation/theory/black-scholes.md`.
+**Next task to pick up:** T4.1 (`FeeSchedule`), followed by T4.2 (`DegiroFees`).
 
 ---
 
@@ -513,7 +526,7 @@ Tracked, with sources and dates, in
 - [ ] Confirm the active-year **Box 3** parameters against Belastingdienst for your tax year.
 - [ ] Confirm current **DEGIRO fee schedule** for options/shares/AutoFX.
 - [ ] Black–Scholes prices/Greeks match an independent reference within tolerance.
-- [ ] Estimators recover known σ/μ from synthetic GBM.
+- [x] Estimators recover known σ/μ from synthetic GBM — done in T3.2/T3.4.
 - [ ] Monte-Carlo mean converges to closed-form expectation.
 - [x] Money math uses integer cents, not `float` — done in T1.1.
 

@@ -43,6 +43,8 @@ one day reverse.
   rates, volatility, delta, option contracts.
 - [Option valuation contracts](design/valuation.md) - what the valuation layer requires, guarantees
   and refuses to express.
+- [Estimation contracts](design/estimation.md) - what a price history must be, what the estimators
+  guarantee, and what they refuse to answer.
 - [Decision log](design/decisions.md) - numbered, dated modelling decisions.
 
 ### Theory
@@ -61,6 +63,12 @@ one day reverse.
   how accurately it can be known.
 - [Assignment and early exercise](theory/assignment-and-early-exercise.md) - the moneyness rule and
   the dividend-driven early assignment of a call.
+- [Log returns and realised volatility](theory/log-returns-and-volatility.md) - log returns,
+  annualisation, and the bias that quoting in minor units introduces.
+- [Drift estimation](theory/drift-estimation.md) - the drift of the price against the drift of its
+  logarithm, fitting the slope, and how little the answer is known.
+- [Exponentially weighted volatility](theory/exponentially-weighted-volatility.md) - smoothing
+  factors, half-lives, forgetting factors, and the trade between responsiveness and precision.
 
 ### Validation
 

@@ -233,3 +233,123 @@ strategy had already committed to without changing whether it happens.
 
 **Reconsider if** the projection becomes sensitive to the timing of put assignment, or if a
 distribution over assignment outcomes is needed to report a realistic worst case.
+
+---
+
+## D11 - An estimator is given a completed history, not a live stream
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** Two of the estimators in this project are recursive: they carry a running state that is
+updated once per observation. The obvious shape for them is an object that is fed one observation at
+a time. That shape has a cost here, because the state in question belongs to the external numerical
+library, and an object that holds it either exposes the library's types in this project's vocabulary
+or hides them behind an indirection that exists only to hide them.
+
+**Decision.** Every estimator takes a completed history and returns either a single estimate or the
+whole sequence of estimates that history would have produced, one per observation. Nothing recursive
+is kept between calls.
+
+**Consequences.** The external library's types stay entirely inside the calculation, so no consumer
+of an estimate compiles against them, and an estimator is a value with no lifetime to manage and
+nothing to reset. The sequence-returning form is what the recursive estimators are actually used for
+- inspecting how an estimate settled, and comparing how fast two settings react - so nothing is lost.
+The cost is that re-estimating after one new observation redoes the whole pass, which is linear work
+that nothing in this project does in a loop.
+
+**Reconsider if** a live data feed is added, at which point re-running the pass per tick stops being
+free.
+
+---
+
+## D12 - The published drift is the drift of the price, corrected once
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** A price and its logarithm grow at different rates: the log price grows at half the
+variance less than the price does. A regression on the log price therefore measures one of them while
+a simulation that must reproduce the expected price needs the other. Both are called "the drift", and
+both are small decimals in the same range, so a confusion between them is invisible.
+
+**Decision.** The fitted quantity is named for what it is - the drift of the log price - and the
+quantity published to the rest of the project is the drift of the price. The conversion between them
+is applied at exactly one place, where the drift and the volatility are gathered into one set, which
+is also the only place where both numbers are in hand at once.
+
+**Consequences.** The two drifts are never both in circulation under the same name, and the
+conversion cannot be applied twice or forgotten, because there is only one point at which it could
+happen. It also forces the drift and the volatility to be published together rather than separately,
+which is correct: the conversion makes them mutually dependent, so a drift quoted without the
+volatility it was corrected with is not a complete answer.
+
+---
+
+## D13 - Ordinary least squares is the fit; orthogonal regression is an option, not the default
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** Fitting a line to the log price against time can be done by minimising vertical distance,
+which assumes the time axis is exact, or perpendicular distance, which assumes both axes carry error.
+The second is the standard remedy when the horizontal coordinate is a measurement.
+
+**Decision.** Fit by minimising vertical distance. Offer the perpendicular fit as a substitutable
+alternative - a named capability that the drift estimator is given, rather than a flag it inspects -
+with both axes scaled to unit length first so that it does not depend on the units the price happens
+to be quoted in.
+
+**Consequences.** The default matches the data: an observation date is a recorded fact, not a
+measurement, so there is no error in the horizontal coordinate for the perpendicular fit to correct.
+On a real price path the perpendicular fit reports a materially larger drift - larger by the
+reciprocal of the correlation between the two axes - because it attributes part of the path's own
+randomness to the time axis. Keeping it available documents that the choice was made rather than
+overlooked, and it is the right fit if a series whose timestamps are genuinely uncertain ever
+arrives. Expressing the choice as a capability rather than as a closed set of names means the
+centring, the scaling and the conversion of a slope into a rate are written once and shared, a third
+fit can be added without touching the estimator that uses it, and neither fit can be selected without
+an implementation existing. Rationale: [drift estimation](../theory/drift-estimation.md).
+
+**Reconsider if** a data source appears whose timestamps are estimates rather than records.
+
+---
+
+## D14 - A price history is validated where it is created, and states its own frequency
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** Every estimator needs the same things to be true of its input - at least two
+observations, dates that increase, positive prices in one currency - and every estimator needs to
+know how many observations there are in a year in order to annualise. Each of those could be checked
+by each estimator, and the frequency could be passed in alongside.
+
+**Decision.** A dated price history is a value with an invariant, checked once when it is created. It
+derives its own observation frequency from its dates and its day-count convention, and no caller is
+ever asked for one.
+
+**Consequences.** The checks happen once instead of five times, and the one mistake that would
+otherwise be easy to make and impossible to see - annualising monthly closes as though they were
+daily, which overstates volatility by a factor of about five - becomes inexpressible. The cost is
+that the frequency of an irregular series is an average rather than a constant, which is the right
+answer for a series with holidays in it and a lossy one for a series that changes sampling frequency
+part way through.
+
+---
+
+## D15 - The fitted drift accepts a bounded number of observations
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** The external library solves least-squares problems whose size is fixed when the program
+is built, not when it runs. A history read from a file has whatever length the file has.
+
+**Decision.** Each fit publishes the longest window it accepts - several decades of daily
+observations - and refuses a longer one outright. Shorter windows are padded to that size in a way
+that provably leaves the fitted line unchanged, by adding observations at the centre of the data,
+which contribute nothing to either the slope or the intercept.
+
+**Consequences.** A history that is too long stops the run at the boundary where it entered rather
+than being silently truncated to its first few decades, which would produce a plausible and wrong
+answer. Every fit costs the same regardless of how much data it was given, which is wasteful for
+short windows and irrelevant at the scale this project runs at. The padding is exact rather than
+approximate, so the published limit is the only visible consequence of the underlying constraint.
+
+**Reconsider if** intraday data brings histories longer than the published limit into normal use.
