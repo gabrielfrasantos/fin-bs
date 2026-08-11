@@ -15,7 +15,3 @@ updates:
     directory: .devcontainer
     schedule:
       interval: daily
-  - package-ecosystem: gitsubmodule
-    directory: /
-    schedule:
-      interval: weekly

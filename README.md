@@ -29,7 +29,7 @@ A ready-made toolchain is available via the dev container in `.devcontainer/`.
 ## Getting started
 
 ```sh
-git clone --recursive https://github.com/gabrielfrasantos/fin-bs.git
+git clone https://github.com/gabrielfrasantos/fin-bs.git
 cd fin-bs
 
 cmake --preset host
@@ -37,14 +37,9 @@ cmake --build --preset host-Debug
 ctest --preset host-Debug
 ```
 
-Already cloned without `--recursive`:
-
-```sh
-git submodule update --init --recursive
-```
-
-`embedded-infra-lib` is fetched automatically by CMake at configure time; only
-`numerical-toolbox` is vendored as a submodule.
+There are no submodules. Both dependencies - `numerical-toolbox-cpp` and `embedded-infra-lib` - are
+fetched by CMake at configure time, each pinned to an exact commit, so the first configure needs
+network access.
 
 ## Presets
 
@@ -59,7 +54,6 @@ git submodule update --init --recursive
 ```
 config/              tax, broker and scenario configuration (no rates in code)
 data/                user-provided price history and options-chain snapshots
-numerical-toolbox/   git submodule: numerical-toolbox-cpp
 source/              the project, one CMake target per module (fin.core, fin.pricing, ...)
 documentation/       design notes, theory notes, and the validation log
 ```
