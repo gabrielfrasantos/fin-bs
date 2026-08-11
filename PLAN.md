@@ -259,12 +259,24 @@ Written so far: [quantities and their conventions](documentation/design/quantiti
 - Output feeds both the pricing model (IV proxy) and the Monte-Carlo SDE.
 - **Tests:** feed synthetic GBM data with known σ/μ, assert recovered params within tolerance.
 
-### 4.3 Strategy Engine (`source/strategy/`)
-- `WheelEngine`: state machine `{CASH → SHORT_PUT → HOLDING_SHARES → SHORT_CALL → …}`.
-- `CompoundingLedger`: tracks capital, reinvests net premium each cycle, sizes next round of
-  contracts from available capital (this is the *"increase investment over time"* mechanism).
-- Rolling rules (roll untested/tested legs) configurable.
-- **Tests:** deterministic scripted price paths → assert ledger balances, assignment transitions.
+### 4.3 Strategy Engine (`source/strategy/`) — implemented
+- `Portfolio`: cash, share lots and short positions, with collateral reserved against short puts;
+  cash is never negative and reserved cash is never spent twice. Equity is *derived* from the
+  holdings and a price, never stored.
+- `CompoundingLedger`: append-only, dated, typed cashflows; the opening balance plus the ledger is
+  the closing balance at every point.
+- `ReinvestmentPolicy`: free capital, less a cash buffer in basis points, divided by one contract's
+  collateral — the compounding mechanism, and the only place capital becomes contracts.
+- `WheelEngine`: a total function of (holding, event) over
+  `CASH → SHORT_PUT → HOLDING_SHARES → SHORT_CALL → CASH`; anything else is refused.
+- `RollRules`: roll on days to expiry, on the fraction of premium already captured, or on a delta
+  cap, reported risk-first. `Projection`: runs the engine over a scripted path, one row per cycle.
+- **Tests:** the full transition table, the value-neutrality of assignment, ledger reconciliation,
+  and a hand-checked three-year table of premiums, charges, assignments and equity.
+- Design: [strategy contracts](documentation/design/strategy.md); theory:
+  [the wheel](documentation/theory/wheel-strategy.md),
+  [position sizing and compounding](documentation/theory/position-sizing-and-compounding.md),
+  [rolling a short option](documentation/theory/rolling-a-short-option.md).
 
 ### 4.4 Tax (`source/tax/`)
 - `Box3TaxModel`: loads `nl_<year>.json`; computes deemed return on year-end asset value minus
@@ -477,16 +489,40 @@ in the code.
 
 ---
 
-### Epic 5 — Strategy engine (M3)
+### Epic 5 — Strategy engine (M3) — **complete**
 
-| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
-|---|---|---|---|---|
-| T5.1 | Portfolio state | `strategy/Portfolio.hpp` — cash, share lots, short option positions, collateral reserved. Tests: invariant "cash ≥ 0" and "collateral ≤ cash" enforced; opening a CSP reserves strike × 100 | T1.4, T1.1 | M |
-| T5.2 | Cashflow ledger | `strategy/CompoundingLedger.hpp` — append-only, typed cashflows (`Premium`, `Fee`, `Assignment`, `Dividend`, `Tax`, `Fx`); equity is derived, never stored. Tests: ledger sums reconcile to portfolio equity after a scripted sequence | T5.1, T4.2 | M |
-| T5.3 | Sizing / reinvestment policy | `strategy/ReinvestmentPolicy.hpp` — given free capital and a strike, how many contracts to open (this **is** the compounding mechanism); includes a configurable cash buffer. Tests: capital just below/above one contract's collateral; buffer respected | T5.2 | M |
-| T5.4 | Wheel state machine | `strategy/WheelEngine.hpp` — `CASH → SHORT_PUT → HOLDING_SHARES → SHORT_CALL → CASH`. Pure function of (state, market event). Tests: every legal transition + every illegal transition rejected | T5.3, T2.5 | L → split per state if needed |
-| T5.5 | Roll rules | `strategy/RollRules.hpp` — roll at N DTE, at X% of max profit, or when Δ breaches a threshold. Tests: each trigger fires exactly once on a scripted path; rolling never increases risk beyond the configured cap | T5.4 | M |
-| T5.6 | Deterministic projection | `strategy/Projection.hpp` — run the engine over a scripted price path, emit per-period rows. Tests: hand-checked 3-year path produces the expected premium/assignment/equity table | T5.5 | M |
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
+|---|---|---|---|---|---|
+| T5.1 | Portfolio state | `strategy/Portfolio.hpp` — cash, share lots, short option positions, collateral reserved. Tests: invariant "cash ≥ 0" and "collateral ≤ cash" enforced; opening a CSP reserves strike × 100 | T1.4, T1.1 | M | **done** |
+| T5.2 | Cashflow ledger | `strategy/CompoundingLedger.hpp` — append-only, typed cashflows (`Premium`, `Fee`, `Assignment`, `Dividend`, `Tax`, `Fx`); equity is derived, never stored. Tests: ledger sums reconcile to portfolio equity after a scripted sequence | T5.1, T4.2 | M | **done** |
+| T5.3 | Sizing / reinvestment policy | `strategy/ReinvestmentPolicy.hpp` — given free capital and a strike, how many contracts to open (this **is** the compounding mechanism); includes a configurable cash buffer. Tests: capital just below/above one contract's collateral; buffer respected | T5.2 | M | **done** |
+| T5.4 | Wheel state machine | `strategy/WheelEngine.hpp` — `CASH → SHORT_PUT → HOLDING_SHARES → SHORT_CALL → CASH`. Pure function of (state, market event). Tests: every legal transition + every illegal transition rejected | T5.3, T2.5 | L → split per state if needed | **done** |
+| T5.5 | Roll rules | `strategy/RollRules.hpp` — roll at N DTE, at X% of max profit, or when Δ breaches a threshold. Tests: each trigger fires exactly once on a scripted path; rolling never increases risk beyond the configured cap | T5.4 | M | **done** |
+| T5.6 | Deterministic projection | `strategy/Projection.hpp` — run the engine over a scripted price path, emit per-period rows. Tests: hand-checked 3-year path produces the expected premium/assignment/equity table | T5.5 | M | **done** |
+| T5.7 | Epic 5 documentation | `design/strategy.md`, three `theory/` notes (the wheel, position sizing and compounding, rolling a short option), decision log entries D21-D25 | T5.1-T5.6 | M | **done** |
+
+**Exit criteria (met):** `fin.strategy` turns a scripted price path into a per-cycle table of
+premiums, charges, assignments, cash, shares and equity; cash is never negative, collateral is never
+spent twice, and the opening balance plus the ledger equals the closing balance at every point; 67
+tests green in both Debug and Release.
+
+> **A projection advances by cycles, not by calendar periods.** A row is one option from the day it
+> is written to the day it expires, is assigned or is closed, because that is when a wheel changes
+> state ([D24](documentation/design/decisions.md)). The hand-checked table is six half-year cycles
+> over three years. Anything annual by nature — Box 3, above all — has to be struck on its own dates
+> rather than on row boundaries, which Epic 6 does.
+
+> **The strategy layer prices nothing.** Premiums, the value of a position at an observation and the
+> price at expiry are supplied by the script; assignment is delegated to T2.5 and charges to T4.2
+> ([D25](documentation/design/decisions.md)). This is what lets the whole engine be tested against
+> arithmetic a reader can check on paper, with no volatility anywhere in the test, and what will let
+> Epic 7 drive the same engine from simulated paths without changing it.
+
+> **Deviation from the acceptance criteria for T5.5.** "Rolling never increases risk beyond the
+> configured cap" is expressed as a test that the rules refuse a replacement whose delta exceeds the
+> cap, rather than as a property of a roll the engine performs: the replacement is the next cycle's
+> option and comes from the script, so the rules can only judge it, not choose it. Choosing it needs
+> an options chain, which arrives with T9.3.
 
 ---
 

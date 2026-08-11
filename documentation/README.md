@@ -47,6 +47,8 @@ one day reverse.
   guarantee, and what they refuse to answer.
 - [Cost contracts](design/costs.md) - what a fee schedule must be, what the cost layer guarantees,
   and where a schedule that is wrong is caught.
+- [Strategy contracts](design/strategy.md) - what a portfolio may do, how cashflows are recorded,
+  which transitions of the cycle exist, and what a projection reports.
 - [Decision log](design/decisions.md) - numbered, dated modelling decisions.
 
 ### Theory
@@ -75,6 +77,12 @@ one day reverse.
   a portfolio, with a ceiling, and why the ceiling matters.
 - [Currency conversion](theory/currency-conversion.md) - the base currency, the spot rate, the
   handling cost, and the cost of a round trip.
+- [The wheel](theory/wheel-strategy.md) - the cycle of cash-secured puts and covered calls, what each
+  leg settles, and what a cycle is worth.
+- [Position sizing and compounding](theory/position-sizing-and-compounding.md) - free capital, the
+  cash buffer, whole contracts, and why the granularity is a drag.
+- [Rolling a short option](theory/rolling-a-short-option.md) - the time, profit and risk triggers,
+  what a roll costs, and why a rolled position cannot be assigned.
 
 ### Validation
 

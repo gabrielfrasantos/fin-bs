@@ -482,3 +482,132 @@ looking at the file, the message is what matters.
 
 **Reconsider if** a configuration format arrives that this project does not control, and that quotes
 cash as decimals.
+
+---
+
+## D21 - A short position reserves cash, and the reservation is what makes it covered
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** A broker does not require the full purchase price to be set aside against a short put;
+it requires a margin that depends on its own risk model, on the price of the underlying, on the day,
+and on the account. Modelling that would make every projection a projection of one broker's margin
+policy, and would let the model write positions that the strategy this project describes would never
+write.
+
+**Decision.** A short put reserves the entire purchase price - strike times contract size times
+contracts - out of cash for as long as it is open, and a short call is covered by shares that no
+other call covers. Reserved cash counts towards the balance but is not available to secure another
+position, to pay a charge, or to buy anything. A position that cannot be covered this way is refused.
+
+**Consequences.** The capital committed by a position is a known, exact amount that does not move
+with the market, so the sizing rule is deterministic and a projection is reproducible. The cost is
+that the model can never show the leverage a real account is offered, and will always report a lower
+return than a margined version of the same strategy - which is the honest comparison for the strategy
+being described, and an understatement for any other. It also means an assignment is fully funded by
+construction: the cash paid is exactly the cash released.
+
+**Reconsider if** a margined variant of the strategy is brought into scope, in which case the
+requirement becomes a policy supplied from outside rather than a rule in the model.
+
+---
+
+## D22 - A short option is carried at what it would cost to settle it
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** Equity has to include the liability of an open short option. Valuing it properly means
+pricing it, which needs a volatility, a rate and a time to expiry at every point where equity is
+asked for - and makes the reported equity of a strategy depend on the pricing model rather than on
+what happened.
+
+**Decision.** Equity is cash, plus shares at the stated price, less the intrinsic value of the short
+positions at that same price. Extrinsic value is not carried.
+
+**Consequences.** Equity is a function of the holdings and one price, with no model, no parameters
+and nothing to estimate, so it can be checked by hand at any point. Because a projection reports its
+rows at expiry, where extrinsic value is zero by definition, every published figure is exact rather
+than approximate. It also makes assignment exactly value-neutral, which is the invariant that guards
+the settlement arithmetic. The cost is that equity asked for mid-cycle understates the liability by
+the extrinsic value, and therefore flatters a position that has moved against the writer; anything
+that needs an accurate mid-cycle mark must price the position itself.
+
+**Reconsider if** results are ever reported between expiries, for instance a mark-to-market drawdown
+series rather than a per-cycle one.
+
+---
+
+## D23 - Cashflows are recorded and equity is derived
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** A compounding projection can carry its result as a running equity figure updated by each
+event, or as an append-only record of what moved with the result computed from the holdings whenever
+it is wanted. The first is cheaper to read and is what most spreadsheets do.
+
+**Decision.** Every movement of cash is appended to a ledger as a dated, typed, signed entry, and
+equity is derived from the holdings and a price each time it is asked for. Nothing stores an equity
+figure. The types are fixed - premium, charge, assignment, dividend, tax, currency handling - and a
+charge, a tax and a currency handling cost can only be negative while a dividend can only be
+positive.
+
+**Consequences.** The opening balance plus the ledger equals the closing balance at every point,
+which is a check that runs on every projection rather than a claim. Because the entries are typed,
+the report can answer what premiums earned and what charges cost over the whole horizon without a
+second pass, and the sign rule means a charge booked backwards fails immediately rather than
+inflating a return. The cost is that both a premium and an assignment must be allowed either sign -
+buying a position back is a premium paid - so those two types carry no sign guarantee.
+
+**Reconsider if** the number of entries becomes large enough that summing them dominates a
+Monte-Carlo run, in which case a cached total that is checked against the sum, rather than replacing
+it, is the compromise.
+
+---
+
+## D24 - A cycle is the unit of a projection, and a roll ends one
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** A projection has to advance in steps. The obvious step is a calendar period - a month, a
+quarter, a year - but a wheel does not change state on the calendar; it changes when an option is
+written, expires, is assigned or is closed. The obvious alternative is to make a roll extend the
+current position into a later expiry, which is how the trade is usually described.
+
+**Decision.** The step is one cycle: one option from the day it is written to the day it expires, is
+assigned, or is closed early. A roll closes the position and ends the cycle; the replacement is the
+next cycle's option, written from the balance the close left behind.
+
+**Consequences.** Every row of a projection is one option's whole life, so premiums, charges and
+settlements never straddle two rows, and a hand-checked table stays hand-checkable. Because a closed
+position no longer exists, a rolled option cannot also be assigned - the single most damaging
+double-count available in this model - and that follows from the structure rather than from a check.
+The cost is that a row is not a calendar period, so anything that is annual by nature, taxation above
+all, has to be struck on its own dates rather than on row boundaries.
+
+**Reconsider if** a strategy variant holds several positions with different expiries at once, which
+would make "the cycle" ambiguous.
+
+---
+
+## D25 - The strategy layer is driven by a script, and prices nothing
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** A projection needs a premium for every option it writes, a value for every position it
+considers closing, and a price at every expiry. These could come from the valuation layer, given a
+volatility and a rate.
+
+**Decision.** They are supplied to the projection from outside, as a scripted sequence of periods.
+The strategy layer decides how many contracts, which transitions are legal, when to roll and what
+settles; it never computes what an option is worth. Assignment is delegated to the valuation layer's
+moneyness rule and charges to the cost layer.
+
+**Consequences.** The strategy can be tested against arithmetic that a reader can check on paper,
+with no volatility anywhere in the test, and its results cannot be an artefact of the pricing model.
+The same interface accepts a scripted path, a historical path or a simulated one without change,
+which is what lets the Monte-Carlo layer reuse it unmodified. The cost is that the caller carries the
+obligation to produce a consistent script - a premium that matches the volatility that generated the
+path - and an inconsistent script produces a plausible-looking projection of nothing.
+
+**Reconsider if** strike selection by target delta is brought inside the projection, which would
+require it to price a chain rather than read a strike.
