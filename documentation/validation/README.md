@@ -26,7 +26,9 @@ model they refer to do not exist.
       charge is not**, and it is the cost this project is most sensitive to.
 - [x] **Black-Scholes** prices and Greeks match an independent reference within tolerance.
 - [x] **Estimators** recover a known $\sigma$ and $\mu$ from synthetic geometric Brownian motion.
-- [ ] **Monte-Carlo** mean converges to the closed-form expectation.
+- [x] **Monte-Carlo** mean converges to the closed-form expectation - the simulated mean terminal
+      price sits inside a three-standard-error band at a thousand, ten thousand and a hundred
+      thousand paths, and the band narrows as the square root of that count.
 - [x] Cash arithmetic is counted in whole minor units, not in floating point.
 
 ## Already settled
@@ -43,4 +45,6 @@ model they refer to do not exist.
 | Configured cash | stated directly in minor units, never as a decimal | [D20](../design/decisions.md) |
 | Currency conversion | spot amount and handling cost reported separately | [theory](../theory/currency-conversion.md), [D19](../design/decisions.md) |
 | Basis of taxation | wealth on one reference date, never income | [theory](../theory/box3-taxation.md), [D26](../design/decisions.md) |
+| Price process | geometric Brownian motion, sampled exactly on the dates read | [theory](../theory/monte-carlo-simulation.md), [D31](../design/decisions.md) |
+| Reported percentiles | an outcome at a rank, never an interpolation between two | [theory](../theory/monte-carlo-simulation.md), [D35](../design/decisions.md) |
 | Borrowing | not modelled; wealth is non-negative | [D29](../design/decisions.md) |

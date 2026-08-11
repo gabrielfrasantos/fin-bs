@@ -51,6 +51,8 @@ one day reverse.
   which transitions of the cycle exist, and what a projection reports.
 - [Tax contracts](design/tax.md) - what a set of tax rules must be, what the tax layer guarantees,
   and why it cannot be handed an income.
+- [Simulation contracts](design/simulation.md) - what a simulated run must be given, what it
+  guarantees about reproducibility, and which options it refuses to write or close.
 - [Decision log](design/decisions.md) - numbered, dated modelling decisions.
 
 ### Theory
@@ -88,6 +90,8 @@ one day reverse.
 - [Wealth taxation of an investment portfolio](theory/box3-taxation.md) - why the tax falls on what
   is held on one date a year rather than on what was earned, and what that does to a strategy whose
   income is large relative to its capital.
+- [Monte-Carlo projection of a wheel](theory/monte-carlo-simulation.md) - the price process, why the
+  path is sampled exactly, how many paths an average needs, and how outcomes become percentiles.
 
 ### Validation
 

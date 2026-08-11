@@ -308,11 +308,25 @@ Written so far: [quantities and their conventions](documentation/design/quantiti
   [broker costs](documentation/theory/broker-costs.md),
   [currency conversion](documentation/theory/currency-conversion.md).
 
-### 4.6 Simulation (`source/sim/`)
-- `MonteCarlo`: simulates many GBM (or estimated-SDE) price paths using toolbox **Runge-Kutta**
-  integrators for the SDE drift term; runs the `WheelEngine` on each path; aggregates to
-  P5/P50/P95 equity and CAGR distributions.
-- **Tests:** convergence of the mean to closed-form expectation as paths → large.
+### 4.6 Simulation (`source/sim/`) — implemented
+- `Rng`: a seeded stream of uniform and standard-normal variates; the transform is the project's own,
+  so a seed reproduces a run exactly on any platform.
+- `GbmPathGenerator`: geometric Brownian motion in the logarithm of the price, the drift integrated
+  with the toolbox **Runge-Kutta** integrator and the diffusion drawn from its exact law over each
+  step, on whatever schedule of dates it is given. It produces a price history the estimators accept.
+- `WheelScript`: the terms of the wheel — cycle length, target delta, strike grid, roll observation,
+  annual reference date — turned into the dates a run needs a price for, and then, one cycle at a
+  time, into the periods the strategy engine runs over. It selects the strike and prices the premium
+  from the model, because a simulated future has no options chain.
+- `MonteCarlo`: runs the same `Projection` over N simulated paths, collecting terminal equity, CAGR,
+  assignments and the deepest drawdown. `OutcomeDistribution`: percentiles by rank, means, worst
+  drawdown and assignment frequency.
+- **Tests:** the stream is reproducible and its normals have the right mean and variance; a path with
+  no volatility is the integrated drift exactly; the mean terminal price and the log-variance converge
+  to their closed forms within three standard errors; one path reproduces the projection driven by the
+  same periods; ten thousand paths never reach a charge they cannot settle.
+- Design: [simulation contracts](documentation/design/simulation.md); theory:
+  [Monte-Carlo projection of a wheel](documentation/theory/monte-carlo-simulation.md).
 
 ### 4.7 Optimization (`source/optimize/`)
 - `StrikeSizingOptimizer`: uses toolbox **Gradient Descent** with **L1/L2 regularization** to pick
@@ -573,15 +587,44 @@ the configuration loader and 7 more in the projection, green in both Debug and R
 
 ---
 
-### Epic 7 — Monte-Carlo (M5)
+### Epic 7 — Monte-Carlo (M5) — **complete**
 
-| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
-|---|---|---|---|---|
-| T7.1 | Deterministic RNG | `sim/Rng.hpp` — seeded PRNG + normal variates. Tests: same seed → identical stream; sample mean/variance within tolerance at n=1e6 | — | S |
-| T7.2 | SDE path generator | `sim/GbmPathGenerator.hpp` — GBM integrated with the toolbox Runge-Kutta/Dormand-Prince integrators for the drift term. Tests: E[S_t] converges to `S_0 e^{μt}`; log-variance converges to `σ²t` | T7.1, T3.6 | M |
-| T7.3 | Simulation runner | `sim/MonteCarlo.hpp` — runs `WheelEngine` over N paths, collects terminal equity and CAGR. Tests: N=1 reproduces the deterministic projection of T5.6 | T7.2, T5.6 | M |
-| T7.4 | Distribution aggregation | `sim/OutcomeDistribution.hpp` — P5/P50/P95, max drawdown, assignment frequency. Tests: percentiles of a known distribution; monotone ordering P5 ≤ P50 ≤ P95 | T7.3 | S |
-| T7.5 | Convergence test | Statistical test that the MC mean approaches the closed-form expectation as N grows (with a fixed seed so CI is deterministic) | T7.4 | S |
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
+|---|---|---|---|---|---|
+| T7.1 | Deterministic RNG | `sim/Rng.hpp` — seeded PRNG + normal variates. Tests: same seed → identical stream; sample mean/variance within tolerance at n=1e6 | — | S | **done** |
+| T7.2 | SDE path generator | `sim/GbmPathGenerator.hpp` — GBM integrated with the toolbox Runge-Kutta/Dormand-Prince integrators for the drift term. Tests: E[S_t] converges to `S_0 e^{μt}`; log-variance converges to `σ²t` | T7.1, T3.6 | M | **done** |
+| T7.3 | Simulation runner | `sim/MonteCarlo.hpp` — runs `WheelEngine` over N paths, collects terminal equity and CAGR. Tests: N=1 reproduces the deterministic projection of T5.6 | T7.2, T5.6 | M | **done** |
+| T7.4 | Distribution aggregation | `sim/OutcomeDistribution.hpp` — P5/P50/P95, max drawdown, assignment frequency. Tests: percentiles of a known distribution; monotone ordering P5 ≤ P50 ≤ P95 | T7.3 | S | **done** |
+| T7.5 | Convergence test | Statistical test that the MC mean approaches the closed-form expectation as N grows (with a fixed seed so CI is deterministic) | T7.4 | S | **done** |
+| T7.6 | Epic 7 documentation | `design/simulation.md`, `theory/monte-carlo-simulation.md`, decision log entries D30-D35 | T7.1-T7.5 | M | **done** |
+
+**Exit criteria (met):** a seeded run turns a price model and a description of how the wheel is run
+into a distribution of after-cost, after-tax outcomes; the same seed reproduces it to the cent; one
+path is exactly the deterministic projection of the script that path writes; the simulated mean sits
+inside a three-standard-error band that narrows as the square root of the number of paths. 46 tests
+in the simulation module, green in both Debug and Release.
+
+> **A script cannot be written before the run it describes.** Whether a cycle writes a put or a call
+> follows from whether the previous one was assigned, which follows from the path, so the script is
+> produced one cycle at a time from where the wheel actually stands
+> ([D32](documentation/design/decisions.md)). The strategy layer is untouched: it still receives
+> periods and still prices nothing ([D25](documentation/design/decisions.md)).
+
+> **The path is sampled exactly, on the dates the strategy reads.** The log increment of geometric
+> Brownian motion is normal over any interval, so there is no step-size error to trade against run
+> time, and a run costs a few dozen draws rather than a few thousand
+> ([D31](documentation/design/decisions.md)). A daily grid is still generated when the purpose is to
+> feed the estimators, and a path so generated returns the volatility it was made with.
+
+> **Deviations from the acceptance criteria.** T7.2's Dormand-Prince alternative is not used: the
+> drift of the log price is constant, the fixed-step Runge-Kutta rule integrates it exactly, and an
+> adaptive integrator would only choose the same step. T7.3's "N=1 reproduces the deterministic
+> projection" is expressed as the strongest form available — one path equals a projection driven
+> directly by the periods that path writes — because the hand-checked table of T5.6 belongs to a
+> price path chosen by hand and no seed produces it. Two structural limits are recorded rather than
+> worked around: a covered call is never offered a roll, because repurchasing one needs cash the
+> shares cannot raise ([D34](documentation/design/decisions.md)), and the strike comes from the model
+> rather than from a chain, which arrives with T9.3 ([D33](documentation/design/decisions.md)).
 
 ---
 
@@ -617,7 +660,7 @@ Epic 1 → Epic 2 → Epic 3 → Epic 4 → Epic 5 → Epic 6 → Epic 7 → Epi
 The only useful reorderings: T9.1/T9.2 (loaders) can be pulled forward to feed real data into Epic 3,
 and Epic 4 can slip after Epic 5 if the ledger initially runs fee-free.
 
-**Next task to pick up:** T5.1 (`Portfolio`), followed by T5.2 (`CompoundingLedger`).
+**Next task to pick up:** T8.1 (`StrategyObjective`), followed by T8.2 (`StrikeSizingOptimizer`).
 
 ---
 
@@ -631,7 +674,7 @@ Tracked, with sources and dates, in
       connectivity, AutoFX) was confirmed on 2026-08-11.
 - [ ] Black–Scholes prices/Greeks match an independent reference within tolerance.
 - [x] Estimators recover known σ/μ from synthetic GBM — done in T3.2/T3.4.
-- [ ] Monte-Carlo mean converges to closed-form expectation.
+- [x] Monte-Carlo mean converges to closed-form expectation — done in T7.5.
 - [x] Money math uses integer cents, not `float` — done in T1.1.
 
 ---

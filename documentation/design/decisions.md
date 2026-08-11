@@ -712,3 +712,142 @@ with assets outside this portfolio is charged less.
 
 **Reconsider if** a margined variant of the strategy is brought into scope, which is the same trigger
 as D21.
+
+---
+
+## D30 - Randomness is seeded, and the transform from uniform to normal is ours
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** A distribution of outcomes is only useful if the same inputs produce it again: it has to
+be comparable with another run, checkable by a test, and explainable to a reader. The obvious route -
+asking the standard library for normally distributed numbers - does not give that. The library fixes
+the *distribution* of the result but not the *algorithm* that produces it, so the same seed can yield
+a different stream on another implementation, another platform, or another version of the same one.
+
+**Decision.** Every source of randomness takes a seed, and the mapping from the underlying integer
+stream to standard normal variates is written here: two uniforms in the open unit interval become two
+normal variates by the Box-Muller transform, drawn and returned in a fixed order. Nothing in the layer
+draws from a distribution the project does not define.
+
+**Consequences.** A seed identifies a run exactly, in minor units, on any platform that has the same
+arithmetic, which is what makes a simulated projection testable at all. Two variates are produced per
+pair of uniforms and both are returned, so the number of draws consumed by a path is fixed and a path
+does not depend on what was asked for before it. The cost is one small routine to own, verified
+against the mean and variance it is supposed to have.
+
+---
+
+## D31 - A path is sampled exactly, on the dates the strategy reads
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** The price model has an exact solution: over any interval, the increment of the log price
+is normal with a known mean and variance. A simulator can either use that, or discretise the process
+and accept a bias that shrinks as the steps get smaller.
+
+**Decision.** The log increment is drawn from its exact law, over whatever intervals it is asked for.
+The strategy states the dates it needs a price for - each cycle boundary, each roll observation, each
+reference date - and the path carries a price for exactly those dates and no others.
+
+**Consequences.** There is no step-size error to trade against run time, and no minimum step below
+which the simulation stops being trustworthy. A run of a wheel over several years costs a few dozen
+draws instead of a few thousand, and the distribution it produces is the same one a daily grid would
+have produced, because the strategy reads the price on a few dates either way. A daily grid is still
+available and is what the estimators are fed, since they do read every observation. The cost is that
+a quantity defined *between* the dates the strategy reads - the deepest intraperiod fall of the
+underlying, say - cannot be reported without asking for more dates.
+
+---
+
+## D32 - The script is asked for one cycle at a time, after the previous one has settled
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** [D25](#d25---the-strategy-layer-is-driven-by-a-script-and-prices-nothing) has the
+strategy layer driven by a script that says what is written, at what strike and for what premium.
+Under a simulated path the script is generated rather than written out, and it immediately runs into
+the fact that whether the next leg is a put or a call depends on whether the previous one was
+assigned - which depends on the path.
+
+**Decision.** The script is produced one cycle at a time, and each cycle is produced only after the
+previous one has settled, from where the wheel actually stands. The generator of the script is told
+the state; it does not predict it.
+
+**Consequences.** The simulated run and the projection it drives cannot disagree about which leg was
+written, because there is only one answer and it is read rather than guessed. A hand-written script
+for a whole run remains possible and is what the deterministic projection uses, so nothing about the
+strategy layer changes. The cost is that a script cannot be inspected in full before the run that
+produces it.
+
+---
+
+## D33 - A strike is the nearest listed one whose delta does not exceed the target
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** A simulated future has no options chain to choose a strike from, so the strike has to
+come from the model. Delta is the natural target - "sell the thirty-delta put" is how the strategy is
+actually described - but no listed strike has exactly that delta, and delta is a continuous,
+monotone function of the strike, so a target names an interval rather than a strike.
+
+**Decision.** Strikes are whole multiples of a stated increment, and the one chosen is the nearest
+one whose delta magnitude does not exceed the target: the highest such strike for a put, the lowest
+for a call. The choice is found by bisection on the grid, which the monotonicity of delta in the
+strike makes exact.
+
+**Consequences.** The strike is one an exchange would list, and the risk written is never larger than
+the risk configured - the error from the grid always falls on the conservative side, which is the
+side a reader of a projection should be surprised by less often. Because the rule is one-sided, a
+coarse strike grid systematically writes options slightly further out of the money, and therefore
+collects slightly less premium, than the target implies. That is visible and bounded by the
+increment, rather than being an average error of unknown sign.
+
+**Reconsider if** a quoted options chain becomes available for the dates being projected, in which
+case the strike and the premium should both come from it.
+
+---
+
+## D34 - Only the cash-secured leg is offered a roll
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** [D21](#d21---a-short-position-reserves-cash-and-the-reservation-is-what-makes-it-covered)
+secures a short put with cash and a short call with shares. Rolling means buying the option back, and
+buying it back needs cash. For a put the arithmetic always works: closing it releases collateral of
+the full strike, and a put is never worth more than its strike. For a covered call it does not: the
+position's collateral is shares, and repurchasing a call that has gone deep in the money needs cash
+the position can only raise by selling those shares, which is not a move this model makes.
+
+**Decision.** A simulated cycle attaches a roll observation only when the option written is a
+cash-secured put. A covered call runs to expiry or assignment.
+
+**Consequences.** A simulated run cannot stop partway through because it could not fund a repurchase -
+the situation is not merely unlikely, it is unreachable. The risk-driven roll remains available on the
+leg where it matters most, since it is a put going against the position that turns cash into shares.
+The cost is that the model cannot express rolling a call up and out, which is a real technique; a
+projection therefore takes assignment on calls slightly more often than a trader using that technique
+would.
+
+**Reconsider if** the strategy layer gains a way to fund a repurchase from the position it is
+covering, which is a different strategy rather than a detail of this one.
+
+---
+
+## D35 - A percentile is an outcome that occurred
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** The 5th, 50th and 95th percentile of a set of simulated outcomes rarely fall on a path
+exactly. The usual answer is to interpolate between the two neighbouring paths.
+
+**Decision.** Outcomes are ordered by terminal equity and a percentile is the outcome at the rank
+that percentile reaches, rounded up. No value is blended, and every figure reported at a percentile -
+the growth rate, the deepest drawdown, how many cycles were assigned - is read from that same path.
+
+**Consequences.** A reported percentile is a portfolio the simulation actually produced, and the
+figures quoted beside it describe one coherent run rather than three unrelated ones. It also avoids
+having to round an interpolated cash amount, which would put a rounding rule in the middle of a
+reporting step. The cost is granularity: with few paths the percentiles are coarse and neighbouring
+ones coincide, which is a true statement about how little a small run knows rather than a defect to
+be smoothed over.
