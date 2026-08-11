@@ -127,3 +127,109 @@ one canonical compounding convention rather than carrying a label saying which i
 than writing a bare decimal - "a volatility of 20% per annum" rather than "0.2" - which is the
 point: the unit is recorded where the number enters the model, once, instead of being remembered at
 every use.
+
+---
+
+## D7 - A model value is a decimal per share; only a cashflow is counted in minor units
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** [D1](#d1---cash-is-counted-in-whole-minor-units) says cash is counted in whole minor
+units. A theoretical option value looks like cash, so the obvious reading is that it should be too.
+But it is not cash: it is the output of a continuous formula that is immediately fed back into
+another continuous calculation - a sensitivity, a finite difference, or the search that inverts it.
+Rounding a per-share value to the nearest minor unit puts an error of half a cent into it, and half
+a cent divided by a typical vega is a volatility error thousands of times larger than the accuracy
+the inversion is asked to reach.
+
+**Decision.** Option values, sensitivities and intrinsic and extrinsic values are decimals, per
+share, in the option's currency. The contract multiplier and the rounding to whole minor units are
+applied together, once, at the single point where a model value becomes a cashflow that is recorded
+in a ledger.
+
+**Consequences.** The rule "money is never a decimal" narrows to the sharper and more defensible
+"money that moves is never a decimal", and the boundary between the two worlds is one visible step
+rather than a scattering of conversions. Spot and strike remain cash amounts - they are contractual
+figures that really are exact in minor units - so the conversion into the formula happens on the way
+in as well as on the way out. A reviewer can find every place a decimal becomes money by looking for
+that one step.
+
+**Reconsider if** a value ever needs to be compared for exact equality with a recorded cashflow.
+
+---
+
+## D8 - Options are valued with a European model and a continuous dividend yield
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** The options this project trades are American-style and are written on shares that pay
+discrete dividends. The available closed-form valuation is European with a continuous yield.
+Alternatives - lattices, or American closed-form approximations - price the exercise feature
+directly, at one to three orders of magnitude more cost per valuation and without an analytic
+inverse.
+
+**Decision.** Value every option with the European formula extended by a continuous dividend yield.
+Handle the American feature *outside* the valuation, as an explicit early-assignment rule that
+compares a discrete dividend against the option's remaining extrinsic value.
+
+**Consequences.** A projection can revalue a book as often as a Monte-Carlo run demands, and an
+observed premium can be inverted into a volatility, which a lattice would not allow. The
+approximation is visible: it lives in a named rule with its own tests, rather than being absorbed
+into a price where nobody can see how large it is. The cost is that the European value is a lower
+bound for an American call on a dividend-paying share, and the model does not quantify the gap.
+
+**Reconsider if** the early-assignment rule turns out to fire often enough that the size of the gap
+matters to the projection.
+
+---
+
+## D9 - A volatility that the market price does not determine is reported as absent
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** Inverting a price into a volatility has no answer when the price violates the
+no-arbitrage bounds, when the option has expired, or when the search does not converge within its
+budget. These are not defects: a chain snapshot contains stale and crossed quotes on every illiquid
+strike, and the caller is the only one who can decide whether to skip the strike or substitute an
+estimate. Separately, even when an answer exists it may not be *determined*: where vega is tiny, a
+wide band of volatilities produces the identical price.
+
+**Decision.** The inversion returns either a volatility or nothing. It does not throw, does not
+return a sentinel value, and does not extrapolate outside the bounds. The bounds themselves are
+answers rather than failures: a price exactly at the discounted intrinsic value implies zero
+volatility. The search is safeguarded by bisection so that "no result" means the problem had no
+answer, not that the method wandered off.
+
+**Consequences.** Every caller is forced to have a policy for an uninvertible quote, at the point
+where it loads the quote, which is the only place that has the context to choose one. This is the
+same boundary rule as [D4](#d4---impossible-states-stop-the-run-recoverable-conditions-are-reported):
+a defect stops the run, an external condition is reported. What the decision does *not* do is defend
+against the ill-conditioned case, where an answer is returned that is technically correct and
+practically meaningless; that has to be handled by weighting on quality, further up. Rationale:
+[implied volatility](../theory/implied-volatility.md).
+
+---
+
+## D10 - Assignment is deterministic, and early assignment is modelled only for dividends
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** In reality, assignment is allocated randomly among short positions by the clearing
+house, holders sometimes exercise when it is not rational, and an option pinned at its strike may go
+either way. Modelling that faithfully would make every projection depend on counterparty behaviour
+that cannot be estimated from any data this project has.
+
+**Decision.** Assignment is a function of the inputs alone. At expiry a contract is assigned when it
+is in the money by any amount, and not otherwise, with the boundary resolved in favour of not
+assigning. Before expiry, only the dividend-driven early exercise of a call is modelled: it is the
+one case with a clear economic trigger and a systematic, one-directional effect on a wheel. Early
+exercise of a put is out of scope for now.
+
+**Consequences.** A projection is reproducible from its seed, and the randomness in the model stays
+where it can be justified - in the price path. Two known biases are accepted in exchange: outcomes
+exactly at the strike are always resolved the same way, and a short put that would have been
+assigned early is instead assigned at expiry, which shifts the timing of a share purchase the
+strategy had already committed to without changing whether it happens.
+
+**Reconsider if** the projection becomes sensitive to the timing of put assignment, or if a
+distribution over assignment outcomes is needed to report a realistic worst case.

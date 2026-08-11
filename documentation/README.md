@@ -41,6 +41,8 @@ one day reverse.
 
 - [Quantities and their conventions](design/quantities.md) - money, dates, year fractions, interest
   rates, volatility, delta, option contracts.
+- [Option valuation contracts](design/valuation.md) - what the valuation layer requires, guarantees
+  and refuses to express.
 - [Decision log](design/decisions.md) - numbered, dated modelling decisions.
 
 ### Theory
@@ -51,6 +53,14 @@ one day reverse.
 - [Volatility scaling](theory/volatility-scaling.md) - the square-root-of-time rule and its limits.
 - [Option contract conventions](theory/option-contract-conventions.md) - multiplier, notional,
   moneyness, delta.
+- [Black-Scholes-Merton option valuation](theory/black-scholes.md) - the formula, its assumptions,
+  parity and the no-arbitrage bounds.
+- [Option Greeks](theory/option-greeks.md) - definitions, units, sign conventions, finite-difference
+  verification.
+- [Implied volatility](theory/implied-volatility.md) - inverting a price, when it has no answer, and
+  how accurately it can be known.
+- [Assignment and early exercise](theory/assignment-and-early-exercise.md) - the moneyness rule and
+  the dividend-driven early assignment of a call.
 
 ### Validation
 

@@ -20,7 +20,7 @@ model they refer to do not exist.
 
 - [ ] Active-year **Box 3** parameters confirmed against Belastingdienst.
 - [ ] Current **DEGIRO fee schedule** confirmed for options, shares and currency conversion.
-- [ ] **Black-Scholes** prices and Greeks match an independent reference within tolerance.
+- [x] **Black-Scholes** prices and Greeks match an independent reference within tolerance.
 - [ ] **Estimators** recover a known $\sigma$ and $\mu$ from synthetic geometric Brownian motion.
 - [ ] **Monte-Carlo** mean converges to the closed-form expectation.
 - [x] Cash arithmetic is counted in whole minor units, not in floating point.
@@ -33,3 +33,5 @@ model they refer to do not exist.
 | Day-count conventions | ACT/365F and ACT/252, no holiday calendar | [theory](../theory/day-count-conventions.md) |
 | Rate convention | continuously compounded as the canonical form | [theory](../theory/rates-and-compounding.md) |
 | Contract multiplier | 100 by default, part of a contract's identity | [theory](../theory/option-contract-conventions.md) |
+| Option valuation | European with a continuous dividend yield | [theory](../theory/black-scholes.md), [D8](../design/decisions.md) |
+| Assignment | deterministic; early exercise modelled for dividends only | [theory](../theory/assignment-and-early-exercise.md), [D10](../design/decisions.md) |

@@ -390,15 +390,20 @@ Debug and Release; every precondition is specified by an `EXPECT_DEATH` rather t
 
 ---
 
-### Epic 2 — Pricing (M1)
+### Epic 2 — Pricing (M1) — **complete**
 
-| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
-|---|---|---|---|---|
-| T2.1 | Normal CDF | `pricing/NormalDistribution.hpp`: `Φ(x) = 0.5 * math::Erfc(-x/√2)`, plus pdf. Tests: Φ(0)=0.5, symmetry Φ(-x)=1-Φ(x), tail values vs. published table within 1e-7 | — | S |
-| T2.2 | Black–Scholes price | `pricing/BlackScholes.hpp` European call/put with continuous dividend yield `q`. Tests: ≥ 3 published reference prices (`EXPECT_NEAR`), **put–call parity** invariant, monotonicity in σ and in S | T2.1, T1.3 | M |
-| T2.3 | Greeks | `pricing/Greeks.hpp`: delta, gamma, theta, vega, rho. Tests: each Greek cross-checked against a central finite difference of T2.2 within 1e-4; gamma ≥ 0; call delta ∈ (0,1) | T2.2 | M |
-| T2.4 | Implied volatility | `pricing/ImpliedVolatility.hpp`: Newton on vega with bisection fallback and iteration cap. Tests: round-trip — price at σ then recover σ within 1e-5; converges for deep ITM/OTM; fails *gracefully* (no throw, returns `optional`) below intrinsic | T2.3 | M |
-| T2.5 | Assignment | `pricing/AssignmentModel.hpp`: at-expiry moneyness rule + early-assignment heuristic when a dividend exceeds remaining extrinsic value. Tests: ITM/OTM/ATM boundaries, dividend-driven early call assignment | T2.2, T1.4 | M |
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
+|---|---|---|---|---|---|
+| T2.1 | Normal CDF | `pricing/NormalDistribution.hpp`: `Φ(x) = 0.5 * math::Erfc(-x/√2)`, plus pdf. Tests: Φ(0)=0.5, symmetry Φ(-x)=1-Φ(x), tail values vs. published table within 1e-7 | — | S | **done** |
+| T2.2 | Black–Scholes price | `pricing/BlackScholes.hpp` European call/put with continuous dividend yield `q`. Tests: ≥ 3 published reference prices (`EXPECT_NEAR`), **put–call parity** invariant, monotonicity in σ and in S | T2.1, T1.3 | M | **done** |
+| T2.3 | Greeks | `pricing/Greeks.hpp`: delta, gamma, theta, vega, rho. Tests: each Greek cross-checked against a central finite difference of T2.2 within 1e-4; gamma ≥ 0; call delta ∈ (0,1) | T2.2 | M | **done** |
+| T2.4 | Implied volatility | `pricing/ImpliedVolatility.hpp`: Newton on vega with bisection fallback and iteration cap. Tests: round-trip — price at σ then recover σ within 1e-5; converges for deep ITM/OTM; fails *gracefully* (no throw, returns `optional`) below intrinsic | T2.3 | M | **done** |
+| T2.5 | Assignment | `pricing/AssignmentModel.hpp`: at-expiry moneyness rule + early-assignment heuristic when a dividend exceeds remaining extrinsic value. Tests: ITM/OTM/ATM boundaries, dividend-driven early call assignment | T2.2, T1.4 | M | **done** |
+| T2.6 | Epic 2 documentation | `design/valuation.md`, four `theory/` notes (Black–Scholes, Greeks, implied volatility, assignment), decision log entries D7–D10, reference-valuation rows in `validation/sources.md` | T2.1–T2.5 | M | **done** |
+
+**Exit criteria (met):** `fin.pricing` values a European option, its Greeks and its implied
+volatility, and decides assignment; 41 tests green in both Debug and Release; every model input
+carries its unit and every refusal is specified by an `EXPECT_DEATH`.
 
 ---
 
