@@ -55,6 +55,8 @@ one day reverse.
   guarantees about reproducibility, and which options it refuses to write or close.
 - [Optimisation contracts](design/optimization.md) - what a search over a strategy must be given,
   what it guarantees about an answer, and the size of position it refuses to let anyone state twice.
+- [What is read and what is written](design/io.md) - what a price history, a scenario and a report
+  must be, and which of their properties are modelling inputs rather than presentation.
 - [Decision log](design/decisions.md) - numbered, dated modelling decisions.
 
 ### Theory
@@ -97,6 +99,8 @@ one day reverse.
 - [Searching for a setting](theory/searching-for-a-setting.md) - the three levers a wheel is run
   with, why every candidate is scored against the same futures, and how a risk limit becomes part of
   the quantity being maximised.
+- [How a projection is put together](theory/methodology.md) - the whole chain in the order a run
+  happens, every assumption stated where it enters, and the limits collected in one place.
 
 ### Validation
 

@@ -18,6 +18,8 @@ namespace fin::strategy
         std::int32_t daysToExpiry;
         std::int32_t profitCaptureBasisPoints;
         core::Delta deltaLimit;
+
+        bool operator==(const RollTriggers& other) const = default;
     };
 
     struct PositionObservation

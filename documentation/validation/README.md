@@ -16,7 +16,9 @@ stale parameter is wrong in a way no automated check can detect.
 ## Pre-use checklist
 
 Mirrors [PLAN.md](../../PLAN.md) section 9. Most of these cannot be ticked yet; the parts of the
-model they refer to do not exist.
+model they refer to do not exist. Read
+[how a projection is put together](../theory/methodology.md) first - it is the only document that
+states every assumption of the chain at once, and it collects the known limits in one table.
 
 - [ ] Active-year **Box 3** parameters confirmed against Belastingdienst - the allowance, the two
       imputed returns and the tax rate for 2025 are confirmed; the **dividend withholding rate is
@@ -61,3 +63,6 @@ model they refer to do not exist.
 | Sharing capital | one pot, richest premium per unit of collateral served first, ties by listed order | [theory](../theory/running-several-wheels-at-once.md), [D43](../design/decisions.md) |
 | Taxing a book | struck once on the whole book, at a cycle boundary, allowance granted once | [design](../design/book.md), [D44](../design/decisions.md) |
 | Assignment rate | measured per option written, not per cycle | [D46](../design/decisions.md) |
+| Reading a close | rounded to the nearest minor unit, ties to even, never refused | [design](../design/io.md), [D47](../design/decisions.md) |
+| Writing a scenario | whole minor units and whole basis points only, so a save reloads identically | [design](../design/io.md), [D48](../design/decisions.md) |
+| Reporting the tax | one row of the ledger, never a column of the cycle table | [design](../design/io.md), [D49](../design/decisions.md) |

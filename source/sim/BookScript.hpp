@@ -24,6 +24,8 @@ namespace fin::sim
         core::Volatility volatility;
         core::Rate dividendYield;
         core::Money strikeIncrement;
+
+        bool operator==(const UnderlyingTerms& other) const = default;
     };
 
     struct BookTerms
@@ -36,6 +38,8 @@ namespace fin::sim
         core::Rate riskFreeRate;
         std::optional<AnnualReference> assessment;
         std::vector<UnderlyingTerms> underlyings;
+
+        bool operator==(const BookTerms& other) const = default;
     };
 
     class BookScript

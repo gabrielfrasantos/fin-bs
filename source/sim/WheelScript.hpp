@@ -19,6 +19,8 @@ namespace fin::sim
     {
         std::uint32_t month;
         std::uint32_t day;
+
+        bool operator==(const AnnualReference& other) const = default;
     };
 
     struct WheelTerms

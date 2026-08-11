@@ -1099,3 +1099,67 @@ of cycles times the number of underlyings.
 **Consequences.** The quantity means what its name says: the fraction of the positions written that
 ended in assignment. It is unchanged for a single underlying, so a limit expressed against it keeps
 its meaning, and it stays comparable between books of different sizes.
+
+---
+
+## D47 - A close carrying more precision than a minor unit is rounded, not refused
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** Cash is counted in whole minor units, and published price files routinely quote four to
+eight decimals. A price history therefore arrives more precise than the unit it is read into.
+Refusing such a file would reject almost every real one; truncating it would shave every price
+downwards, and a systematic bias compounds exactly like a return does.
+
+**Decision.** A close is rounded to the nearest minor unit, ties to even - the rounding used
+everywhere else in the project - and the file is accepted. The rounding is done on the digits as
+written, never by way of a binary floating-point number.
+
+**Consequences.** Any price file can be read, and a file of prices sitting exactly halfway between
+two minor units carries no drift. The cost is that the model cannot distinguish two closes that
+differ by less than half a minor unit; for an underlying priced in single digits this is a relative
+error of a few parts in a thousand, which is larger than it sounds and is the reason the estimated
+volatility of a cheap underlying is biased upwards.
+
+---
+
+## D48 - A scenario states amounts in minor units and proportions in basis points, and never a decimal
+
+*Date: 2026-08-11. Status: accepted. Extends [D20](decisions.md) from configuration to scenarios.*
+
+**Context.** A scenario is edited, saved, reloaded and run, and the run has to be the same run. A
+decimal number read into binary floating point and written back out is not reliably the same text,
+and the value it denotes is not reliably the same value. Separately, whole numbers are the one thing
+a document format reads without ambiguity, so a scenario of whole numbers needs no numeric parser of
+this project's own.
+
+**Decision.** Every amount in a scenario is a whole number of minor units and every proportion - a
+volatility, a drift, a dividend yield, a target delta, a cash buffer, a rate - is a whole number of
+basis points. No decimal number appears anywhere in a scenario.
+
+**Consequences.** A scenario saved and reloaded is the same scenario, field for field, and a run is
+reproducible across sessions and not merely within one. The cost is granularity: a volatility can be
+stated to a hundredth of a percent and no finer, and a person editing the file by hand writes 2200
+where they mean 22%. The bound on what a whole number in such a file may be also bounds the seed, so
+the space of reproducible runs is that bound rather than the full width of the generator.
+
+---
+
+## D49 - The wealth tax appears in the ledger and never in a cycle row
+
+*Date: 2026-08-11. Status: accepted. Follows from [D44](decisions.md).*
+
+**Context.** A book is assessed once, on the whole book, at a cycle boundary. A cycle row belongs to
+one underlying. There is no honest way to attribute a charge levied on a whole book to one of its
+names: splitting it by value would invent a rule nobody chose, and assigning it to the first name
+would be simply wrong.
+
+**Decision.** The charge is recorded as one dated cashflow in the ledger. The tax column of a cycle
+row reports only what that underlying's own wheel was charged, which for a wheel inside a book is
+always nothing.
+
+**Consequences.** The ledger is the complete record of what a run cost, and the cycle table is the
+record of what each wheel did. A reader who totals the tax column of the cycle table gets zero, which
+is correct and is stated in the report contract so that it reads as a fact about where to look rather
+than as a run that was untaxed. A wheel run on its own, outside a book, still reports its own charge
+in its own row.

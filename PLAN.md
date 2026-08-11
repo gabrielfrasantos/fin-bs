@@ -824,17 +824,46 @@ measured cost in growth. 44 tests in the optimisation module, green in both Debu
 
 ---
 
-### Epic 9 — I/O and reports (M7) — **rescoped: the GUI is the interface, so there is no CLI**
+### Epic 9 — I/O and reports (M7) — **complete; rescoped: the GUI is the interface, so there is no CLI**
 
 | ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
 |---|---|---|---|---|---|
 | T9.1 | ~~JSON reading utility~~ | **struck** - emil already provides it: `infra/syntax/JsonFileReader.hpp` owns and validates a document, `JsonObjectNavigator.hpp` navigates it by key and refuses a missing or mistyped key by name. Loaders use those directly | — | — | **not needed** |
-| T9.2 | Price CSV loader | `io/PriceCsvLoader.hpp` for `date,close`. Tests: golden file; unsorted dates rejected; duplicate dates rejected; CRLF tolerated | T1.2 | M | |
+| T9.2 | Price CSV loader | `io/PriceCsvLoader.hpp` for `date,close`. Tests: golden file; unsorted dates rejected; duplicate dates rejected; CRLF tolerated | T1.2 | M | **done** |
 | T9.3 | ~~Options chain loader~~ | **struck** — strikes come from the model on a listed grid ([D33](documentation/design/decisions.md)), and a snapshot chain cannot price a simulated future anyway. The `io/ChainSource` seam is left for whenever a live provider arrives | — | — | **deferred** |
-| T9.4 | Scenario loader | `io/ScenarioLoader.hpp` — capital, horizon, currency, global levers, **a list of underlyings** (ticker, spot, volatility, drift, dividend yield, strike increment), reference date, seed, links to tax + broker configs. Reads with emil's navigator and **writes back with emil's `JsonFormatter`**, because the GUI saves. Tests: `config/scenarios/example.json` round-trips; a scenario with three underlyings round-trips **in order**; an empty list, a duplicate ticker and a mistyped field are each refused naming the offending key | T6.1, T4.4, T10.2 | M | |
-| T9.5 | Report writer | `io/ReportWriter.hpp` — the per-cycle table and the ledger as CSV, one row per cycle per underlying. This is what the GUI's *Export* does; there is no console table. Tests: golden output for a fixed book projection | T10.3 | M | |
+| T9.4 | Scenario loader | `io/ScenarioLoader.hpp` — capital, horizon, currency, global levers, **a list of underlyings** (ticker, spot, volatility, drift, dividend yield, strike increment), reference date, seed, links to tax + broker configs. Reads with emil's navigator and **writes back with emil's `JsonFormatter`**, because the GUI saves. Tests: `config/scenarios/example.json` round-trips; a scenario with three underlyings round-trips **in order**; an empty list, a duplicate ticker and a mistyped field are each refused naming the offending key | T6.1, T4.4, T10.2 | M | **done** |
+| T9.5 | Report writer | `io/ReportWriter.hpp` — the per-cycle table and the ledger as CSV, one row per cycle per underlying. This is what the GUI's *Export* does; there is no console table. Tests: golden output for a fixed book projection | T10.3 | M | **done** |
 | T9.6 | ~~CLI~~ | **struck** — replaced by the desktop application (Epic 11). The end-to-end golden-run test it was carrying moves to T11.8 | — | — | **replaced** |
-| T9.7 | Methodology docs | `documentation/theory/methodology.md` tying the theory notes into one end-to-end description (formulas, assumptions, limits) + the §9 checklist in `documentation/validation/README.md` filled in | T11.8 | M | |
+| T9.7 | Methodology docs | `documentation/theory/methodology.md` tying the theory notes into one end-to-end description (formulas, assumptions, limits) + the §9 checklist in `documentation/validation/README.md` filled in | T11.8 | M | **methodology done; the checklist waits on T11.8** |
+
+**Exit criteria (met, except the checklist that waits on Epic 11):** a price history is read from a
+file a data provider would actually produce, and every way it can be wrong is reported naming the row
+rather than aborting; a scenario naming three underlyings is read, written and read back as the same
+scenario, order included; a book projection exports a cycle table and a ledger whose every figure is
+a whole number of cents; and the whole chain from a price to a recommendation is written down once,
+end to end, with its limits collected in one table. 61 tests in the I/O module, green in both Debug
+and Release.
+
+> **Nothing in a scenario is a decimal.** Amounts are whole cents and proportions are whole basis
+> points ([D48](documentation/design/decisions.md)), which is what makes a saved scenario reload as
+> *the same* scenario rather than as one that is nearly it. It is also what keeps the promise that
+> this project writes no parser: whole numbers are the one thing a document format reads without
+> ambiguity. The cost is stated - a volatility is settable to a hundredth of a percent and no finer,
+> and the seed is bounded by what such a file can hold.
+
+> **A price file is met halfway.** Published closes carry more decimals than money has; they are
+> rounded to the nearest cent, ties to even, on the digits as written
+> ([D47](documentation/design/decisions.md)). Refusing them would reject almost every real file and
+> truncating them would bias every price downwards, which compounds exactly like a return does.
+
+> **Deviations from the acceptance criteria.** T9.2's currency and day count are supplied by the
+> caller rather than read from the file, because a column of numbers cannot say what currency it is
+> in and the day count is a modelling choice, not data. T9.4's scenario carries the terms of a book
+> directly rather than restating them, so the loader adds no shape of its own; it also carries the
+> path count, which the acceptance criteria did not name but a run needs. T9.5's tax appears in the
+> ledger and never in a cycle row ([D49](documentation/design/decisions.md)) - a charge levied on a
+> whole book cannot honestly be attributed to one of its names. T9.7's checklist half is not filled
+> in: it depends on T11.8, which does not exist yet.
 
 ---
 
@@ -908,7 +937,7 @@ chart is drawn with `QPainter` over geometry computed in a Qt-free layer.
 | T11.6 | Fan chart widget | `gui/FanChartWidget.hpp` — `QPainter` bands, median, axes, ticks; resizes without redistributing the geometry. Qt Test, offscreen: rendering into an image produces the expected pixel at the median at a known date, and an empty series paints an empty frame rather than crashing | T11.4 | M | |
 | T11.7 | Prices, save, export | Load a price CSV per underlying and show the estimated volatility and drift it implies, with a button to adopt them into the row; save and load the scenario as JSON; export the results as CSV. Qt Test, offscreen: adopting an estimate changes exactly the two fields; save-then-load is the identical document, order included; export writes the T9.5 golden file | T11.5, T9.2, T9.4, T9.5 | M | |
 | T11.8 | End-to-end golden run | The example scenario, three underlyings, a fixed seed: opened, run, and its table and recommendation compared against a committed golden file — the test T9.6 used to carry. Acceptance: green under `offscreen` with no display, and reproducible between Debug and Release | T11.7, T10.8 | M | |
-| T11.9 | Epic 11 documentation | `design/presentation.md` (what the window shows and why the model of it is Qt-free), decision log entries D47–D50, and the disclaimer shown beside every result recorded in `validation/README.md` | T11.1–T11.8 | M | |
+| T11.9 | Epic 11 documentation | `design/presentation.md` (what the window shows and why the model of it is Qt-free), decision log entries D50–D53, and the disclaimer shown beside every result recorded in `validation/README.md` | T11.1–T11.8 | M | |
 
 **Exit criteria:** a scenario of several underlyings is edited, saved, reloaded, run, watched,
 cancelled and exported from a window; every result carries the independence and model-risk
@@ -937,15 +966,17 @@ writing them twice. T9.2 (the price CSV loader) is independent of all of it and 
 forward at any time. Within Epic 10, T10.1 and T10.2 are the only ones that touch existing code;
 everything after them is additive.
 
-**Next task to pick up:** T9.2 (`PriceCsvLoader`), followed by T9.4 (`ScenarioLoader`, carrying a
-list of underlyings).
+**Next task to pick up:** T11.1 (Qt in the build), followed by T11.2 (`present::ScenarioDocument`
+over the scenario T9.4 loads).
 
 ---
 
 ## 9. Validation Checklist (do before trusting numbers)
 
 Tracked, with sources and dates, in
-[`documentation/validation/README.md`](documentation/validation/README.md).
+[`documentation/validation/README.md`](documentation/validation/README.md). Read
+[`documentation/theory/methodology.md`](documentation/theory/methodology.md) first: it states every
+assumption of the chain at once and collects the known limits in one table.
 
 - [ ] Confirm the active-year **Box 3** parameters against Belastingdienst for your tax year.
 - [ ] Confirm the **DEGIRO option contract charge** — the rest of the fee schedule (shares, handling,
