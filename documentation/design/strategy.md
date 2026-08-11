@@ -26,11 +26,12 @@ which is right.
 | Term | Meaning |
 |---|---|
 | Holdings | cash, share lots, and short option positions, at one moment |
+| Account | the holdings, the record of every cashflow, and the tax rules in force, as one thing |
 | Collateral | the part of cash reserved against short puts, unavailable for anything else |
 | Free cash | cash less collateral: what may actually be spent or committed |
-| Lot | a block of shares acquired together, carrying what was paid per share |
+| Lot | a block of shares of one underlying acquired together, carrying what was paid per share |
 | Cashflow | one dated, typed, signed movement of cash |
-| Equity | cash, plus shares at a stated price, less what it would cost to settle the short positions |
+| Equity | cash, plus every holding at the stated price of its own underlying, less what it would cost to settle the short positions |
 | Period | one cycle of the wheel, from writing an option to its expiry or early close |
 
 ## Derivation / Rules
@@ -41,13 +42,15 @@ which is right.
 |---|---|
 | A portfolio funded with a non-negative amount in one currency | a strategy that starts in debt is a different model |
 | Enough free cash to secure a put before writing it | an unsecured put is not the strategy being modelled |
-| Shares that nothing else covers before writing a call | a call written twice against one holding is naked once |
+| Shares of the underlying being written, that nothing else covers, before writing a call | a call written twice against one holding is naked once, and shares of one company do not cover a call on another |
 | An amount to pay that free cash covers | reserved cash is not a source of payment |
-| Cashflows dated in non-decreasing order | a ledger is a record of what happened, in the order it happened |
+| Cashflows dated with the day they happened | the record places each entry at its own date, so what is required is a true date rather than a convenient order |
 | A charge posted as a charge and a receipt as a receipt | the sign of an entry carries meaning that a later sum relies on |
 | Roll triggers that are neither always nor never true | such a trigger is a defect in the configuration, not a strategy |
 | A projection started from a portfolio with nothing open | the projection owns the cycle and cannot adopt a position it did not write |
+| A projection started on an account carrying no position in *its* underlying | another wheel's position is none of its business; its own would be one it did not write |
 | A scripted period whose observation falls between writing and expiry | an observation outside the cycle is not an observation of it |
+| A price for every underlying held, and only one price per underlying | a holding valued at nothing, or at two prices, is a wrong answer rather than a missing one |
 
 Each of these is a precondition, checked wherever it is stated and stopping the run when broken.
 None of them is external input: a scenario file is validated at the boundary, and by the time it
@@ -63,10 +66,16 @@ reaches this layer a violation is a programming error.
   price is the same immediately before and immediately after. The same holds for a call assignment.
   This is an invariant, not an approximation, and it is the sharpest available check that the
   settlement arithmetic is right.
-- **Shares leave in the order they arrived.** Lots are consumed oldest first, so the cost basis of
-  what remains is determinate.
+- **Shares leave in the order they arrived, within the underlying they belong to.** Lots of one
+  company are consumed oldest first and lots of another are untouched, so the cost basis of what
+  remains is determinate whatever else is held alongside it.
 - **Equity is derived from holdings and a price, every time it is asked for.** It is never stored,
   never updated incrementally, and therefore cannot drift from the holdings it describes.
+- **A wheel either owns its account or is lent one, and which it is survives being copied.** A wheel
+  that owns its account carries its own cash wherever it is copied, so a simulation can run the same
+  description of a strategy over many futures without one leaking into the next. A wheel that was
+  lent an account keeps writing to that same account however many times it is copied, which is what
+  lets several of them share one pot of cash.
 - **The ledger explains every movement of cash.** The opening balance plus the sum of the ledger is
   the closing balance, at every point in a projection. Cashflows are typed, so the same identity
   holds per kind: what premiums contributed, what charges cost, what assignments moved.

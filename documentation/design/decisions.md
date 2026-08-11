@@ -976,3 +976,126 @@ three. With both charges set to nothing the search is unconstrained in this resp
 behaviour is opt-in. The cost is that a caller must supply a setting they run today even when they
 have none, and that a charge large enough to suppress a change also biases the answer towards a
 starting point that may simply be bad.
+
+---
+
+## D41 - A record of cashflows keeps itself in date order
+
+*Date: 2026-08-11. Status: accepted. Supersedes the ordering precondition introduced with the ledger.*
+
+**Context.** The record of cashflows used to require that entries arrive in non-decreasing date
+order, on the grounds that a record is a record of what happened in the order it happened. With
+several wheels sharing one record and one clock, that requirement cannot be met: whichever wheel is
+served second posts a cashflow dated the day the cycle opened, after the wheel served first has
+already posted one dated the day it expired.
+
+**Decision.** The record places each entry at its own date and keeps itself in order. The
+precondition on the caller is withdrawn.
+
+**Consequences.** The order in which wheels are processed stops being visible in the record, which
+is right: processing order is an artefact of the simulator, not a fact about the portfolio. Entries
+sharing a date still appear in the order they were posted, so a single wheel's record is unchanged
+to the entry. What is lost is a precondition that used to catch a caller posting out of order by
+mistake; nothing now distinguishes that from a caller posting a genuinely earlier cashflow.
+
+---
+
+## D42 - A cycle is written by every wheel before it is settled by any
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** Several wheels sharing a balance are supposed to compete for it. Run one wheel from
+writing to expiry before starting the next, and they never do: the first has released its collateral
+by the time the second asks for it, so every wheel is sized as though it had the whole balance and
+the book commits several times the money it holds. This is not a rounding error - it is a book that
+writes twice the positions it can pay for.
+
+**Decision.** A cycle is run in two passes. Every wheel writes, in service order, against the
+balance as it then stands; only when all have written does any of them settle. A wheel's cycle is
+therefore two calls rather than one, and the wheel holds what it has open between them.
+
+**Consequences.** The competition is real, and the amount a wheel can write depends on what its
+predecessors took. A single wheel is unaffected: writing and settling in immediate succession is
+what it already did. The cost is that a wheel now has a state between the two calls, which is a
+thing that can be left open by a caller who forgets to settle - refused explicitly rather than
+tolerated.
+
+---
+
+## D43 - Collateral goes to the richest premium for the cash it commits
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** When two wheels want to write cash-secured puts on the same day and the balance can
+only collateralise one, something has to choose. The choice cannot be avoided by writing partial
+positions: contracts are whole.
+
+**Decision.** Wheels that need no fresh cash are served first, because a covered call is
+collateralised in shares and cannot deprive anyone. The rest are served in decreasing order of
+premium per unit of collateral - for a put, the premium per share over the strike. An exact tie is
+broken by the order the book lists its underlyings.
+
+**Consequences.** The order of the list becomes part of the description of the strategy rather than
+a presentational detail, and reordering it is a change to the model. More importantly, the rule
+concentrates the book in whatever is most volatile, because the richest premium and the highest
+chance of assignment are the same underlying: this is a preference the rule expresses, not an
+optimum it finds. It is stated in one place, separately from everything else, so that it can be
+replaced and compared against.
+
+---
+
+## D44 - The wealth tax is struck on the book, at a cycle boundary
+
+*Date: 2026-08-11. Status: accepted. Refines the treatment of the reference date.*
+
+**Context.** The tax is levied on what a person holds, and grants an allowance once. A book whose
+wheels each assessed themselves would grant the allowance once per underlying - for five names,
+exempting five times the wealth the rules exempt. Separately, the reference date falls wherever it
+falls, which for a book on one clock is usually in the middle of a cycle, when every wheel has a
+position open and the balance is at its most committed.
+
+**Decision.** The book strikes the charge itself, once, from the whole book valued at the reference
+date. A wheel that is part of a book is refused a reference date outright. The charge is struck at
+the cycle boundary at or before the reference date, when nothing is open.
+
+**Consequences.** The allowance cannot be multiplied by the size of the book, which is the mistake
+this exists to prevent. Because nothing is open at a boundary, what is held is unambiguously cash
+and shares, and the balance is as free as it ever gets - so a charge is far more likely to be
+payable than it would be mid-cycle. The cost is that the valuation ignores whatever the wheels would
+have had open on the reference date itself; for a cash-secured position that is worth nothing, since
+such a position is value-neutral at any price, but it is an approximation and it is stated as one.
+
+---
+
+## D45 - Underlyings are drawn independently, and that is a stated limitation
+
+*Date: 2026-08-11. Status: accepted, provisional.*
+
+**Context.** Simulating a book needs a joint model of its underlyings. Real equities fall together,
+and a book's whole risk profile turns on how much together.
+
+**Decision.** Each underlying is drawn from its own model, independently of the others. Correlation
+is not modelled.
+
+**Consequences.** Every drawdown and every assignment rate a book reports is optimistic, and the
+more names in the book the more optimistic it gets: adding an uncorrelated name of the same market
+narrows the distribution of outcomes in a way no real second holding would. This is the single
+largest known error in a book's numbers. It is recorded here, tested for as the artefact it is, and
+carried alongside every result rather than left to be discovered.
+
+---
+
+## D46 - An assignment rate is measured per option written, not per cycle
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** The frequency with which positions are assigned was counted against the number of
+cycles, which is exactly right when a cycle carries one option. A book of three names writes three
+options a cycle, so the count could exceed its own denominator.
+
+**Decision.** The denominator is the number of options written over the run - for a book, the number
+of cycles times the number of underlyings.
+
+**Consequences.** The quantity means what its name says: the fraction of the positions written that
+ended in assignment. It is unchanged for a single underlying, so a limit expressed against it keeps
+its meaning, and it stays comparable between books of different sizes.

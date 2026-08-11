@@ -30,6 +30,16 @@ model they refer to do not exist.
       price sits inside a three-standard-error band at a thousand, ten thousand and a hundred
       thousand paths, and the band narrows as the square root of that count.
 - [x] Cash arithmetic is counted in whole minor units, not in floating point.
+- [ ] **Understand that the underlyings of a book are drawn independently.** Real equities fall
+      together, and nothing in the model says so. Every drawdown and every assignment rate a book
+      reports is therefore optimistic, and the more names in the book the more optimistic it gets:
+      adding an uncorrelated name of the same market narrows the distribution of outcomes in a way
+      no real second holding would. This is the largest known error in a book's numbers and it
+      cannot be confirmed away - it can only be modelled, which is a later task. See
+      [D45](../design/decisions.md).
+- [ ] **Understand that collateral goes to the richest premium first.** That is a rule, not an
+      optimum, and it concentrates a book in whatever is most volatile - which is also whatever is
+      most likely to be assigned. See [D43](../design/decisions.md).
 
 ## Already settled
 
@@ -48,3 +58,6 @@ model they refer to do not exist.
 | Price process | geometric Brownian motion, sampled exactly on the dates read | [theory](../theory/monte-carlo-simulation.md), [D31](../design/decisions.md) |
 | Reported percentiles | an outcome at a rank, never an interpolation between two | [theory](../theory/monte-carlo-simulation.md), [D35](../design/decisions.md) |
 | Borrowing | not modelled; wealth is non-negative | [D29](../design/decisions.md) |
+| Sharing capital | one pot, richest premium per unit of collateral served first, ties by listed order | [theory](../theory/running-several-wheels-at-once.md), [D43](../design/decisions.md) |
+| Taxing a book | struck once on the whole book, at a cycle boundary, allowance granted once | [design](../design/book.md), [D44](../design/decisions.md) |
+| Assignment rate | measured per option written, not per cycle | [D46](../design/decisions.md) |

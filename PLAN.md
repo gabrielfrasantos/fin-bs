@@ -25,6 +25,24 @@ shares you own) and — since you want to *increase investment over time* — th
 If you actually meant something else (e.g. naked options, spreads, LEAPS), flag it — the engine is
 modular enough to extend, but the initial scope is **Wheel = CSP + Covered Call only**.
 
+### 0.1a Several underlyings at once
+
+The strategy is run on **N underlyings in parallel**, not one. A run is described by a list of
+underlyings, each with its own market and its own listed strike grid, all wheeled side by side out
+of **one shared pot of cash**. The settled shape:
+
+| Question | Answer |
+|---|---|
+| What is per-underlying? | volatility, drift, dividend yield, spot, strike increment |
+| What is global? | the target delta, the cycle length, the roll delta limit, the cash buffer |
+| How is capital shared? | one pool; each cycle, the wheels that need fresh cash claim it **greedily, highest premium per unit of collateral first**, ties broken by the order the underlyings appear in the scenario |
+| Do the wheels share a clock? | yes — the cycle length is global, so all N open and expire on the same dates |
+| Are the paths correlated? | **not in v1** — each underlying is drawn independently. This overstates diversification and is called out as a known limitation (§6) with its own later task |
+| Currency? | all underlyings are EUR-denominated in v1 |
+
+The consequence that matters most: **Box 3 is struck once, on the whole book**, not once per
+underlying. A wheel that is part of a book therefore never assesses tax itself.
+
 ### 0.2 The library reality check (IMPORTANT)
 `numerical-toolbox-cpp` is an **embedded DSP / control / estimation** library. It has **no built-in
 options pricing, no Black–Scholes, no finance primitives**. What it *does* give us that's directly
@@ -66,7 +84,14 @@ ourselves** as a new library layer *on top* of the toolbox. This plan makes that
 - **Platform:** desktop Linux/macOS/Windows (host build), *not* an MCU — so the toolbox's `no-heap`
   constraint is relaxed for our layer, but we'll still prefer bounded containers where cheap.
 - **JSON/CSV:** parsing uses emil's `infra/syntax/Json.hpp` (already on the dependency graph) — no
-  new third-party parser is introduced.
+  new third-party parser is introduced. Writing a scenario back out uses emil's
+  `infra/syntax/JsonFormatter.hpp`, for the same reason.
+- **GUI:** **Qt 6 Widgets**, taken from the system (`qt6-base-dev`), *not* fetched by CMake — it is
+  far too large to build from source per configure, and the development container already carries
+  6.10.2. It is a **hard dependency**: the build requires `Qt6::Widgets` and `Qt6::Test`. Only the
+  Qt Base modules may be used, because that is all that is installed: there is **no Qt Charts and no
+  Qt Quick/QML**, so every chart is drawn by hand with `QPainter`. Widget tests run under the
+  `offscreen` platform plugin so they need no display.
 - **Data:** you provide historical price CSVs and an options chain snapshot (CSV/JSON). **No live
   broker API integration in v1** — DEGIRO has no official retail API. See §7.
 - **Currency:** EUR base. If trading USD-denominated underlyings (e.g. US ETFs), FX is modeled.
@@ -102,14 +127,19 @@ ourselves** as a new library layer *on top* of the toolbox. This plan makes that
 - Naked options, multi-leg spreads, futures.
 - Box 1 / Box 2 tax situations, corporate structures.
 - Portfolio-margin modeling.
+- **A command-line interface.** The GUI is the interface; see §4.9 and Epic 11.
+- **Correlation between underlyings**, and **underlyings in more than one currency** — both are
+  deliberate v1 limitations of the multi-underlying model (§0.1a), each with its own later task.
+- **Staggered expiries.** All wheels share one cycle clock.
 
 ---
 
 ## 1. Goals & Success Criteria
 
-**Primary goal:** Given a starting capital, an underlying, an options chain, and a time horizon,
-estimate the **compounded after-cost, after-Box-3-tax growth** of a covered-call / wheel strategy,
-and **recommend contract sizing / strike selection** under a chosen risk target.
+**Primary goal:** Given a starting capital, **a list of underlyings**, their markets and a time
+horizon, estimate the **compounded after-cost, after-Box-3-tax growth** of a covered-call / wheel
+strategy run across all of them out of one pot of cash, and **recommend contract sizing / strike
+selection** under a chosen risk target — through a desktop application.
 
 **Success criteria:**
 1. Produces a year-by-year projection table (capital, premiums collected, assignments, fees, Box 3
@@ -121,6 +151,11 @@ and **recommend contract sizing / strike selection** under a chosen risk target.
    point estimate.
 5. Optimizer suggests contracts/strikes to hit a target income or max drawdown.
 6. All tax & fee parameters are external config; no magic numbers in code.
+7. **Runs a book of N underlyings out of one pot of cash**, and reconciles: the pot is never
+   overdrawn, no unit of collateral backs two positions, and the wealth tax is struck once on the
+   whole book.
+8. **Is driven from a desktop window**: a scenario is edited, saved and reloaded, a run is started,
+   watched and cancelled, and its outcome is read as a table and a chart.
 
 ---
 
@@ -128,8 +163,20 @@ and **recommend contract sizing / strike selection** under a chosen risk target.
 
 ```
 +-------------------------------------------------------------+
-|                        CLI / App layer                      |
-|  parse config, run scenarios, print/export reports (CSV)    |
+|                    Desktop application (Qt)                 |
+|  edit a scenario, run it on a worker thread, show progress, |
+|  cancel, draw the outcome, export CSV                       |
++------------------------------+------------------------------+
+                               |
++------------------------------v------------------------------+
+|                    Presentation (Qt-free)                   |
+|  scenario document, run controller, table + chart models    |
++------------------------------+------------------------------+
+                               |
++------------------------------v------------------------------+
+|                            Book                             |
+|  N wheels, one pot of cash, one ledger, one tax assessment  |
+|  claims collateral greedily, richest premium per unit first |
 +------------------------------+------------------------------+
                                |
 +------------------------------v------------------------------+
@@ -151,6 +198,10 @@ and **recommend contract sizing / strike selection** under a chosen risk target.
 +-------------------------------------------------------------+
 ```
 
+Qt appears **only in the top box**. Nothing below it knows a window exists: the simulator reports
+its progress through an interface of this project's own, and the presentation layer is plain C++ so
+that what the window shows can be asserted without one.
+
 ---
 
 ## 3. Project Layout
@@ -168,7 +219,7 @@ fin-bs/
 ├── config/
 │   ├── tax/nl_2025.json              # Box 3 params (versioned per year)
 │   ├── broker/degiro.json            # fee schedule
-│   └── scenarios/example.json        # a runnable scenario
+│   └── scenarios/example.json        # a runnable scenario (a list of underlyings)
 ├── data/
 │   ├── prices/                       # historical price CSVs (user-provided)
 │   └── chains/                       # options chain snapshots
@@ -178,11 +229,14 @@ fin-bs/
 │   ├── estimation/      # VolatilityEstimator, DriftEstimator             → fin.estimation
 │   ├── costs/           # BrokerFees, FxModel                             → fin.costs
 │   ├── tax/             # Box3TaxModel, DividendTax                       → fin.tax
-│   ├── strategy/        # WheelEngine, Position, CompoundingLedger        → fin.strategy
+│   ├── strategy/        # WheelEngine, Position, CompoundingLedger, Book  → fin.strategy
 │   ├── sim/             # Rng, GbmPathGenerator, MonteCarlo               → fin.sim
 │   ├── optimize/        # StrikeSizingOptimizer                           → fin.optimize
 │   ├── io/              # CSV/JSON loaders, ReportWriter                  → fin.io
-│   └── app/             # main.cpp CLI                                    → fin.app
+│   ├── present/         # Qt-free scenario document, run controller,      → fin.present
+│   │                    # table and chart models
+│   ├── gui/             # Qt Widgets window, panels, hand-drawn charts    → fin.gui
+│   └── app/             # main.cpp — constructs QApplication, shows it    → fin.app
 │       (each module also contains test/ and, where useful, test_doubles/)
 └── documentation/       # written docs — see §3.1
     ├── TEMPLATE.md      # start every new document from this
@@ -194,8 +248,16 @@ fin-bs/
 **Dependency direction (no cycles):**
 
 ```
-app → io → {strategy, optimize, sim} → {pricing, estimation, tax, costs} → core → numerical-toolbox
+app → gui → present → io → {strategy, optimize, sim} → {pricing, estimation, tax, costs} → core → numerical-toolbox
 ```
+
+**Qt is confined to `gui/` and `app/`.** `present/` is deliberately Qt-free: it holds what the
+window is showing, as plain data, so a presenter can be asserted with the same GoogleTest machinery
+as the rest of the project. `gui/` translates that data into widgets and translates a click back
+into a call, and holds no logic worth a test of its own beyond the ones Epic 11 lists.
+
+No Qt Designer `.ui` files: the naming lint requires PascalCase for source files and a hand-written
+widget keeps the layout reviewable in a diff.
 
 ### 3.1 Documentation layout
 
@@ -347,14 +409,73 @@ Written so far: [quantities and their conventions](documentation/design/quantiti
 - Design: [optimisation contracts](documentation/design/optimization.md); theory:
   [searching for a setting](documentation/theory/searching-for-a-setting.md).
 
+### 4.8 Book (`source/strategy/Book.hpp`) — implemented
+
+What turns one wheel into N. It owns the things there is exactly one of — the cash, the ledger, the
+tax assessment — and lends them to each wheel in turn.
+
+- **A shared account.** `Account` holds the opening balance, the holdings, the ledger and the tax
+  rules as one thing. `Projection` gained a second constructor over an account it does not own,
+  keeping the one it does, so N projections can be run against the same cash without either of them
+  learning that the others exist. Which of the two a wheel is survives being copied, which is what
+  keeps a simulation's per-path copy independent.
+- **A ticker on every holding.** Shares are no longer a bare count: a lot names what it is a lot of,
+  cover is judged per underlying, and the value of the holdings is asked for against a price per
+  underlying. Valuing a holding that was given no price, or giving one two prices, is refused.
+- **Two passes over a cycle.** Every wheel writes before any wheel settles
+  ([D42](documentation/design/decisions.md)). Run the other way round, the first wheel releases its
+  collateral before the second asks for it and the book quietly writes several times the positions
+  it can pay for.
+- **An order of service.** `CollateralAllocation` — wheels that need no fresh cash first, then
+  cash-secured puts by descending premium per unit of collateral, ties by the order the book lists
+  its underlyings. Named and tested on its own, because it is the only place where one underlying
+  can crowd out another.
+- **One assessment.** The wealth tax is struck on the whole book at a cycle boundary and posted
+  once. A wheel running inside a book is refused a reference date.
+- **Tests:** a scripted book of one underlying is the single-name projection cent for cent; the pot
+  is never overdrawn and the ledger still reconciles with N wheels; a richer premium is served first
+  whatever order the scenario lists it in; the allowance is granted to the book and not to every
+  underlying in it; a hand-checked two-name, two-cycle run.
+- Design: [the book](documentation/design/book.md); theory:
+  [running several wheels at once](documentation/theory/running-several-wheels-at-once.md).
+
+### 4.9 Presentation and GUI (`source/present/`, `source/gui/`, `source/app/`) — planned, Epic 11
+
+- `present/ScenarioDocument`: everything a run needs, as edited — capital, horizon, the global
+  levers, and a row per underlying — plus whether it is currently well formed and, if not, which
+  field is wrong. Qt-free, so the rules about what may be entered are tested as arithmetic.
+- `present/RunController`: starts a projection, a simulation or a search; reports progress as a
+  fraction and a count; can be asked to stop and stops at the next path boundary. It talks to the
+  simulator through the observer interface Epic 10 adds, so nothing below it knows about threads.
+- `present/ResultTable` and `present/FanChartSeries`: the per-cycle rows and the ledger as columns
+  of already-formatted text, and the percentile bands as plain sequences of points in model
+  coordinates — the chart's geometry, decided and asserted before any painting happens.
+- `gui/MainWindow`: the scenario on the left, the results on the right. The left panel is the
+  underlying table (add, remove, reorder — order is a modelling input, see §4.8), the global levers,
+  and the run buttons. The right is the per-cycle table, the ledger, the fan chart and the
+  recommendation.
+- `gui/FanChartWidget`: a `QPainter` widget drawing the percentile bands and the median path, with
+  its own axes and ticks. Hand-drawn because Qt Charts is not available (§0.3), and it is roughly a
+  few hundred lines because the geometry is computed elsewhere.
+- `app/main.cpp`: constructs the application, loads the tax and broker configuration, shows the
+  window. Nothing else.
+- **Tests:** the presenters under GoogleTest as ordinary types; the widgets under **Qt Test** with
+  the `offscreen` platform plugin, so a real window is built, filled in, clicked and read back with
+  no display attached.
+
 ---
 
 ## 5. Data & Configuration Contracts
 
 - **Price CSV:** `date,close` (adjusted close preferred).
-- **Options chain:** `expiry,strike,type,bid,ask,iv,delta` (snapshot; user-exported).
-- **Scenario JSON:** starting capital, underlying, horizon (years), target delta, roll rules,
-  reinvestment policy, currency, links to tax+broker configs.
+- **Options chain:** `expiry,strike,type,bid,ask,iv,delta` (snapshot; user-exported). Not read in
+  v1 — see Epic 9.
+- **Scenario JSON:** starting capital, horizon, currency, the global levers (target delta, cycle
+  length, roll delta limit, cash buffer), a **list of underlyings** — each with a ticker, a spot, a
+  volatility, a drift, a dividend yield and a strike increment — the reference date, the seed, and
+  links to the tax and broker configs. **The order of the list is significant**: it breaks ties in
+  the allocation of collateral (§4.8). Cash is stated in whole cents and proportions in whole basis
+  points, as everywhere else.
 - **Tax config:** year, `heffingvrij_vermogen`, deemed-return brackets/percentages, Box 3 rate,
   dividend WHT rate. Versioned; the active year is selected in the scenario.
 
@@ -377,6 +498,24 @@ Written so far: [quantities and their conventions](documentation/design/quantiti
 5. **No live data / no DEGIRO API:** v1 is snapshot-driven; documented clearly.
 6. **Model risk:** Black–Scholes/GBM understates tail/assignment risk. Mitigation: Monte-Carlo
    distributions + explicit disclaimer.
+7. **Independent underlyings overstate diversification (new, Epic 10).** Drawing N paths
+   independently makes a book of N names look far safer than it is; real equities fall together.
+   Every drawdown and every assignment rate a book reports is therefore optimistic. Mitigation: the
+   limitation is stated wherever a book result is shown, and a correlated generator is a named later
+   task rather than an open-ended intention.
+8. **Greedy allocation is not the best allocation (new, Epic 10).** Serving the richest premium
+   first is a rule, not an optimum, and it will concentrate the book in whichever name is most
+   volatile — which is also the one most likely to be assigned. Mitigation: the rule is isolated in
+   one place so an alternative can be substituted and compared, and the concentration it produces is
+   reported rather than hidden.
+9. **Qt reaches further than intended (new, Epic 11).** The usual failure of a GUI on top of a
+   library is that widgets start holding the model. Mitigation: Qt is a build dependency of two
+   directories only (§3), what the window shows lives in a Qt-free layer that is tested without one,
+   and the simulator reports progress through an interface of this project's own — there is no
+   signal, slot or thread below `present/`.
+10. **Qt is a system dependency, not a pinned one (new, Epic 11).** Unlike the toolbox and emil, Qt
+    is whatever the machine has. Mitigation: a minimum version is required in CMake and the CI image
+    installs it explicitly, so "works on my machine" fails at configure time rather than at runtime.
 
 ---
 
@@ -685,28 +824,121 @@ measured cost in growth. 44 tests in the optimisation module, green in both Debu
 
 ---
 
-### Epic 9 — I/O, CLI, reports (M7)
+### Epic 9 — I/O and reports (M7) — **rescoped: the GUI is the interface, so there is no CLI**
 
 | ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
 |---|---|---|---|---|---|
 | T9.1 | ~~JSON reading utility~~ | **struck** - emil already provides it: `infra/syntax/JsonFileReader.hpp` owns and validates a document, `JsonObjectNavigator.hpp` navigates it by key and refuses a missing or mistyped key by name. Loaders use those directly | — | — | **not needed** |
-| T9.2 | Price CSV loader | `io/PriceCsvLoader.hpp` for `date,close`. Tests: golden file; unsorted dates rejected; duplicate dates rejected; CRLF tolerated | T1.2 | M |
-| T9.3 | Options chain loader | `io/ChainCsvLoader.hpp` for `expiry,strike,type,bid,ask,iv,delta`, behind an `io/ChainSource` interface so a live provider can be added later. Tests: golden file; crossed bid/ask rejected | T1.4 | M |
-| T9.4 | Scenario loader | `io/ScenarioLoader.hpp` — starting capital, underlying, horizon, target delta, roll rules, reinvestment policy, currency, links to tax + broker configs. Tests: `config/scenarios/example.json` round-trips | T6.1, T4.4 | M |
-| T9.5 | Report writer | `io/ReportWriter.hpp` — year-by-year CSV + aligned console table (capital, premiums, assignments, fees, tax drag, ending equity, CAGR). Tests: golden output for a fixed projection | T5.6 | M |
-| T9.6 | CLI | `app/main.cpp` with subcommands `price`, `estimate`, `project`, `simulate`, `optimize`; `--scenario <file>`; non-zero exit on bad input. Tests: end-to-end run of the example scenario produces the golden report | T9.5, T8.4 | L → one subcommand per commit |
-| T9.7 | Methodology docs | `documentation/theory/methodology.md` tying the theory notes into one end-to-end description (formulas, assumptions, limits) + the §9 checklist in `documentation/validation/README.md` filled in | T9.6 | M |
+| T9.2 | Price CSV loader | `io/PriceCsvLoader.hpp` for `date,close`. Tests: golden file; unsorted dates rejected; duplicate dates rejected; CRLF tolerated | T1.2 | M | |
+| T9.3 | ~~Options chain loader~~ | **struck** — strikes come from the model on a listed grid ([D33](documentation/design/decisions.md)), and a snapshot chain cannot price a simulated future anyway. The `io/ChainSource` seam is left for whenever a live provider arrives | — | — | **deferred** |
+| T9.4 | Scenario loader | `io/ScenarioLoader.hpp` — capital, horizon, currency, global levers, **a list of underlyings** (ticker, spot, volatility, drift, dividend yield, strike increment), reference date, seed, links to tax + broker configs. Reads with emil's navigator and **writes back with emil's `JsonFormatter`**, because the GUI saves. Tests: `config/scenarios/example.json` round-trips; a scenario with three underlyings round-trips **in order**; an empty list, a duplicate ticker and a mistyped field are each refused naming the offending key | T6.1, T4.4, T10.2 | M | |
+| T9.5 | Report writer | `io/ReportWriter.hpp` — the per-cycle table and the ledger as CSV, one row per cycle per underlying. This is what the GUI's *Export* does; there is no console table. Tests: golden output for a fixed book projection | T10.3 | M | |
+| T9.6 | ~~CLI~~ | **struck** — replaced by the desktop application (Epic 11). The end-to-end golden-run test it was carrying moves to T11.8 | — | — | **replaced** |
+| T9.7 | Methodology docs | `documentation/theory/methodology.md` tying the theory notes into one end-to-end description (formulas, assumptions, limits) + the §9 checklist in `documentation/validation/README.md` filled in | T11.8 | M | |
+
+---
+
+### Epic 10 — A book of N underlyings (M8) — **complete**
+
+The strategy stops being about one ticker. Everything below the book is left alone except the one
+thing that cannot be: a holding has to say what it is a holding *of*.
+
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
+|---|---|---|---|---|---|
+| T10.1 | Holdings gain a ticker | `strategy/Portfolio.hpp`: a share lot names its underlying; cover is judged per underlying; the value of the holdings is asked for against a price **per underlying**. Tests: the existing single-name invariants survive verbatim under one ticker; shares of one name never cover a call on another; assignment stays exactly value-neutral with two names held | T5.1 | M | **done** |
+| T10.2 | A shared account | `strategy/Account.hpp` — the cash, the ledger and the tax model as one thing that several wheels can be run against; `Projection` gains a constructor over an account it does not own, keeping the one it does. Tests: a projection over its own account and one over a shared account of the same opening balance produce identical rows — the Epic 5 hand-checked table, run both ways | T10.1, T5.6 | M | **done** |
+| T10.3 | `Book` | `strategy/Book.hpp` — N wheels on one clock over one account, advancing a cycle at a time in two passes. Tests: N=1 is the single-name projection cent for cent; the pot is never overdrawn; the ledger reconciles with N wheels; two names together never commit more than one wheel would on the same path | T10.2 | L → split allocation out if it grows | **done** |
+| T10.4 | Allocation rule | `strategy/CollateralAllocation.hpp` — wheels needing no fresh cash first, then cash-secured puts by descending premium per unit of collateral, ties in scenario order. A named, substitutable rule, not a loop inside the book. Tests: a richer premium is served first whatever order the scenario lists; an exact tie goes to the earlier row; the wheel that finds the pot empty writes nothing and is not an error; the whole ordering of a cycle asserted against a literal expected sequence | T10.3 | M | **done** |
+| T10.5 | One assessment for the book | The wealth tax struck once, on the whole book, from a price per underlying at the reference date; a wheel inside a book never assesses. Tests: the charge on a book equals the charge on the summed holdings and **not** the sum of N separate charges (the allowance is not multiplied by N — this is the mistake this test exists to prevent); a book below the allowance is charged nothing | T10.3, T6.4 | M | **done** |
+| T10.6 | Simulating a book | `sim/BookScript.hpp` (per-underlying terms over the global levers) and a generator per underlying, drawn **independently**; `sim/BookMonteCarlo.hpp` runs a book. Tests: a one-underlying book runs; the same seed reproduces an N-underlying run to the cent; adding a second uncorrelated name of the same market narrows the distribution — asserted as the known limitation it is | T10.3, T7.3 | L | **done** |
+| T10.7 | Progress and cancellation | `sim/RunObserver.hpp` — an interface the simulator reports each finished path to, and which may ask it to stop; the run returns the distribution of the paths it did finish. **No Qt anywhere near it.** Tests: a run reports exactly N completions in order; a run stopped at path k returns k outcomes and stops drawing; watching a run does not change it | T7.3 | M | **done** |
+| T10.8 | Searching over a book | `optimize/StrategyObjective.hpp` scores a **book** under one global setting. The point stays three-dimensional ([D36](documentation/design/decisions.md)). Tests: a book is scored deterministically and its slope is finite across the box; a book of several names is not scored as the one listed first; a drawdown limit still binds | T10.6, T8.4 | M | **done** |
+| T10.9 | Epic 10 documentation | `design/book.md`, `theory/running-several-wheels-at-once.md` (the shared pot, the allocation rule and a hand-checked two-name run), decision log entries D41–D46, and the independence limitation recorded in `validation/README.md` | T10.1–T10.8 | M | **done** |
+
+**Exit criteria (met):** a scenario naming several underlyings is run out of one pot of cash; the
+pot is never overdrawn and no unit of collateral backs two positions; the wealth tax is struck once
+on the whole book; one underlying reproduces the single-name projection cent for cent; a run can be
+watched and stopped without the engine knowing what is watching it. 116 tests in the strategy
+module, 61 in the simulation module and 46 in the optimiser, green in both Debug and Release.
+
+> **The wheel is not generalised; it is shared.** A projection keeps its single-name contract and
+> its hand-checked table — what changes is that several of them can be pointed at the same cash.
+> The alternative, one projection holding a book of wheel states, would have rewritten the tests
+> that make the arithmetic checkable on paper.
+
+> **The order of the underlyings is a modelling input.** It is not presentation: it breaks ties in
+> who gets the collateral, so reordering the rows of a scenario is a change to the scenario. The
+> GUI's list is therefore explicitly reorderable and the loader preserves order.
+
+> **Two things had to change below the book that the plan did not anticipate.** The first is that a
+> cycle is written by every wheel before it is settled by any
+> ([D42](documentation/design/decisions.md)): run each wheel from writing to expiry in turn and the
+> first releases its collateral before the second asks for it, so nothing ever competes and the book
+> silently writes several times the positions it can pay for. The second is that the record of
+> cashflows now keeps itself in date order rather than demanding it of the caller
+> ([D41](documentation/design/decisions.md)), because whichever wheel is served second posts an
+> opening cashflow after the first has already posted one at expiry.
+
+> **Deviations from the acceptance criteria.** T10.5's charge is struck at a cycle boundary rather
+> than at the reference date itself ([D44](documentation/design/decisions.md)), because that is the
+> one moment at which nothing is open, so what is held is unambiguous and the balance is at its
+> least committed. T10.6's "a one-underlying book reproduces the Epic 7 distribution for the same
+> seed" is not asserted: a book assesses at a boundary and a wheel assesses mid-cycle, so the two
+> differ by one charge's timing — the cent-for-cent equality is asserted where it is exact, on a
+> scripted book against a scripted wheel. T10.8's "reproduces the Epic 8 recommendation" became
+> "scores a book deterministically", since the objective now takes a book and the single-wheel
+> experiment it would have been compared against no longer exists. Assignment frequency is measured
+> per option written rather than per cycle ([D46](documentation/design/decisions.md)), because a
+> book of three names has three chances a cycle.
+
+---
+
+### Epic 11 — Desktop application (M9)
+
+Qt 6 Widgets, from the system, a hard build dependency. Qt Base only — no Charts, no QML. Every
+chart is drawn with `QPainter` over geometry computed in a Qt-free layer.
+
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
+|---|---|---|---|---|---|
+| T11.1 | Qt in the build | `find_package(Qt6 REQUIRED COMPONENTS Widgets Test)` with a stated minimum, `AUTOMOC` on the GUI targets only, `fin.gui` and `fin.app` added, GUI tests registered with `emil_add_test` and given `QT_QPA_PLATFORM=offscreen`. CI installs Qt explicitly. Acceptance: a window with nothing in it opens on a desktop and its test passes with no display; warnings-as-errors still holds, moc output included | — | M | |
+| T11.2 | Scenario document | `present/ScenarioDocument.hpp` — the edited scenario, Qt-free: capital, horizon, global levers, an ordered list of underlying rows, add/remove/move, and a validity report naming the first offending field. Tests: a row with a non-positive spot, a duplicate ticker, an empty list and a delta outside its range are each refused by name; moving a row changes the order and nothing else | T9.4 | M | |
+| T11.3 | Run controller | `present/RunController.hpp` — starts a projection, a simulation or a search, exposes progress as completed/total, cancels. Implements the T10.7 observer. Tests: progress reaches exactly total; cancelling mid-run leaves a partial, readable result and reports itself as cancelled; a failed run reports the failure rather than throwing at the caller | T10.7 | M | |
+| T11.4 | Result models | `present/ResultTable.hpp` (per-cycle rows and the ledger, as formatted columns) and `present/FanChartSeries.hpp` (percentile bands and the median as point sequences in model coordinates, plus the axis ranges and tick positions). Tests: money is formatted to the cent and never as a float; the bands are ordered P5 ≤ P50 ≤ P95 at every date; the axis of a flat series is still non-degenerate | T10.6 | M | |
+| T11.5 | Main window shell | `gui/MainWindow.hpp` — scenario panel left, results right, the underlying table with add/remove/reorder, the global levers, the run buttons, a progress bar and *Cancel*. Qt Test, offscreen: the window builds; typing into a field reaches the document; an invalid field disables *Run* and shows why; *Cancel* is enabled only while running | T11.2, T11.3 | L → one panel per commit | |
+| T11.6 | Fan chart widget | `gui/FanChartWidget.hpp` — `QPainter` bands, median, axes, ticks; resizes without redistributing the geometry. Qt Test, offscreen: rendering into an image produces the expected pixel at the median at a known date, and an empty series paints an empty frame rather than crashing | T11.4 | M | |
+| T11.7 | Prices, save, export | Load a price CSV per underlying and show the estimated volatility and drift it implies, with a button to adopt them into the row; save and load the scenario as JSON; export the results as CSV. Qt Test, offscreen: adopting an estimate changes exactly the two fields; save-then-load is the identical document, order included; export writes the T9.5 golden file | T11.5, T9.2, T9.4, T9.5 | M | |
+| T11.8 | End-to-end golden run | The example scenario, three underlyings, a fixed seed: opened, run, and its table and recommendation compared against a committed golden file — the test T9.6 used to carry. Acceptance: green under `offscreen` with no display, and reproducible between Debug and Release | T11.7, T10.8 | M | |
+| T11.9 | Epic 11 documentation | `design/presentation.md` (what the window shows and why the model of it is Qt-free), decision log entries D47–D50, and the disclaimer shown beside every result recorded in `validation/README.md` | T11.1–T11.8 | M | |
+
+**Exit criteria:** a scenario of several underlyings is edited, saved, reloaded, run, watched,
+cancelled and exported from a window; every result carries the independence and model-risk
+disclaimers; the whole suite, GUI included, is green with no display attached; and no type below
+`present/` mentions Qt.
+
+> **The window is tested, not screenshotted.** Widget tests drive real widgets under the `offscreen`
+> platform plugin: they type, click, and read back. What they deliberately do not assert is
+> appearance — the geometry a chart is drawn from is asserted in the Qt-free layer, where it is
+> arithmetic, and only one pixel-level check exists to prove the painting maps geometry to the
+> frame at all.
+
+> **Deviation from the project's test convention.** GUI tests use Qt Test rather than GoogleTest,
+> because a Qt Test binary supplies its own `main`. They are still registered with `emil_add_test`,
+> which only names the executable, so the suite is one `ctest` run as before.
 
 ---
 
 ### Suggested implementation order
 
-Epic 1 → Epic 2 → Epic 3 → Epic 4 → Epic 5 → Epic 6 → Epic 7 → Epic 8 → Epic 9.
+Epic 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → **10 → 9 → 11**.
 
-The only useful reorderings: T9.1/T9.2 (loaders) can be pulled forward to feed real data into Epic 3,
-and Epic 4 can slip after Epic 5 if the ledger initially runs fee-free.
+Epic 10 now comes before Epic 9: the scenario loader (T9.4) and the report writer (T9.5) both have
+to know about a list of underlyings, and writing them against a single-name model first would mean
+writing them twice. T9.2 (the price CSV loader) is independent of all of it and can be pulled
+forward at any time. Within Epic 10, T10.1 and T10.2 are the only ones that touch existing code;
+everything after them is additive.
 
-**Next task to pick up:** T9.2 (`PriceCsvLoader`), followed by T9.3 (`ChainCsvLoader`).
+**Next task to pick up:** T9.2 (`PriceCsvLoader`), followed by T9.4 (`ScenarioLoader`, carrying a
+list of underlyings).
 
 ---
 
@@ -719,16 +951,29 @@ Tracked, with sources and dates, in
 - [ ] Confirm the **DEGIRO option contract charge** — the rest of the fee schedule (shares, handling,
       connectivity, AutoFX) was confirmed on 2026-08-11.
 - [ ] Black–Scholes prices/Greeks match an independent reference within tolerance.
+- [ ] Understand that a book's underlyings are drawn **independently**, so every drawdown and
+      assignment rate it reports is optimistic (§6.7).
 - [x] Estimators recover known σ/μ from synthetic GBM — done in T3.2/T3.4.
 - [x] Monte-Carlo mean converges to closed-form expectation — done in T7.5.
 - [x] Money math uses integer cents, not `float` — done in T1.1.
 
 ---
 
-## 10. Open Questions for You
-1. Confirm **covered call + cash-secured put wheel** is the intended strategy (vs. naked/spreads).
-2. Which **underlyings** (US ETFs in USD? EUR-denominated)? This drives the FX model.
-3. Your **tax year** and whether you're strictly a **private Box 3 investor**.
-4. Preferred **price-history source** for the estimators (which CSV format).
-5. `float` vs. `double` requirement — settled: integer cents for money, `double` for rates and
-   volatilities (T1.1, decision D1/D3).
+## 10. Open Questions — settled
+
+1. **Strategy:** covered call + cash-secured put wheel. Confirmed.
+2. **Underlyings:** several at once, all EUR-denominated in v1, each with its own market and strike
+   grid, wheeled out of one pot of cash (§0.1a). Mixed currencies are a later task.
+3. **Tax:** private Box 3 investor; the year is selected by the scenario.
+4. **Price history:** `date,close` CSV, loaded per underlying (T9.2), with the estimated volatility
+   and drift shown before they are adopted (T11.7).
+5. **`float` vs `double`:** settled — integer cents for money, `double` for rates and volatilities
+   (T1.1, decisions D1/D3).
+6. **Interface:** a Qt 6 Widgets desktop application, no CLI (§4.9, Epic 11).
+
+Still open, and deliberately deferred rather than forgotten:
+
+- Correlation between underlyings — needs a correlation matrix in the scenario and a factorisation
+  of the covariance; the toolbox has Cholesky.
+- A better allocation rule than "richest premium first", once there is something to compare it to.
+- Staggered expiries, so the wheels do not all turn on the same day.
