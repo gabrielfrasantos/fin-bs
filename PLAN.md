@@ -58,8 +58,10 @@ ourselves** as a new library layer *on top* of the toolbox. This plan makes that
   toolbox only `FetchContent`s `embedded-infra-lib` (emil) when it is the *top-level* project, this
   repo must provide `emil` itself — it is fetched at the same pin the toolbox uses. Clone with
   `git clone --recursive`, or run `git submodule update --init --recursive`.
-- **`float`-only** numeric type initially (the toolbox roadmap is float-only). We may promote to
-  `double` for money math — see §6.4 (money precision risk).
+- **Numeric types:** the toolbox is `float`-only. Our layer uses `double` for rates, volatilities
+  and price paths, and **integer cents** for every cash amount; `float` appears only at the call
+  boundary into a toolbox algorithm. See §6.4 and
+  [decisions D1/D3](documentation/design/decisions.md).
 - **Platform:** desktop Linux/macOS/Windows (host build), *not* an MCU — so the toolbox's `no-heap`
   constraint is relaxed for our layer, but we'll still prefer bounded containers where cheap.
 - **JSON/CSV:** parsing uses emil's `infra/syntax/Json.hpp` (already on the dependency graph) — no
@@ -182,7 +184,11 @@ fin-bs/
 │   ├── io/              # CSV/JSON loaders, ReportWriter                  → fin.io
 │   └── app/             # main.cpp CLI                                    → fin.app
 │       (each module also contains test/ and, where useful, test_doubles/)
-└── documentation/       # methodology, tax notes, validation log
+└── documentation/       # written docs — see §3.1
+    ├── TEMPLATE.md      # start every new document from this
+    ├── design/          # why the code is shaped this way + the decision log
+    ├── theory/          # the finance/maths being implemented, with worked examples
+    └── validation/      # external sources for tax/fee parameters + the pre-use checklist
 ```
 
 **Dependency direction (no cycles):**
@@ -191,9 +197,50 @@ fin-bs/
 app → io → {strategy, optimize, sim} → {pricing, estimation, tax, costs} → core → numerical-toolbox
 ```
 
+### 3.1 Documentation layout
+
+The code is the *what*; `documentation/` is the *why* and the *which formula*. It is split three
+ways so each document has one job and one lifetime:
+
+| Folder | Answers | Changes when |
+|---|---|---|
+| `design/` | Why is the code shaped like this? API contracts, invariants, trade-offs, the numbered decision log | the implementation changes |
+| `theory/` | What is being computed, and why is that correct? Definitions, derivations, worked examples, edge cases | the finance/maths understanding changes — it should survive a rewrite |
+| `validation/` | Do we trust the inputs? Authoritative sources for tax and fee parameters, dates checked, the §9 checklist | an external rule or fee schedule changes |
+
+Rules:
+
+- One document per topic, kebab-case filename, started from `documentation/TEMPLATE.md`.
+- Maths in LaTeX (`$inline$`, `$$block$$`).
+- **Documents are code-agnostic**: domain terms only — no identifiers, no file names, no snippets.
+  A document must stay correct if the implementation is rewritten in another language.
+- Every numeric claim in a `theory/` document is hand-checkable and is also verified automatically.
+- Any parameter taken from the outside world (Belastingdienst, DEGIRO) is logged in
+  `documentation/validation/sources.md` with a URL and the date it was checked — never hardcoded.
+- Design decisions are appended to `documentation/design/decisions.md` as numbered, dated entries;
+  reversing one means adding a superseding entry, not editing history.
+
+Written so far: [quantities and their conventions](documentation/design/quantities.md), the
+[decision log](documentation/design/decisions.md), and theory notes on
+[money and rounding](documentation/theory/money-and-rounding.md),
+[day-count conventions](documentation/theory/day-count-conventions.md),
+[rates and compounding](documentation/theory/rates-and-compounding.md),
+[volatility scaling](documentation/theory/volatility-scaling.md) and
+[option contract conventions](documentation/theory/option-contract-conventions.md).
+
 ---
 
 ## 4. Core Components (detailed)
+
+### 4.0 Core value types (`source/core/`) — implemented
+- `Money` (integer cents + currency tag), `Date`/`DayCount` (ACT/365F, ACT/252), `Rate`
+  (continuously compounded), `Volatility`, `Delta`, `OptionContract`.
+- Header-only `fin.core`; named factories only, no implicit conversions, invariants checked on
+  construction, preconditions abort via `really_assert`.
+- **Tests:** invariants (growth × discount = 1, variance additivity, order-independent
+  accumulation), hand-checked conventions, `static_assert` for the `constexpr` promise, and
+  `EXPECT_DEATH` for every precondition.
+- Design: [quantities and their conventions](documentation/design/quantities.md).
 
 ### 4.1 Pricing (`source/pricing/`)
 - `BlackScholes<T>`: European call/put price using `N(x) = 0.5 * math::Erfc(-x/√2)` (reuse toolbox
@@ -265,8 +312,10 @@ app → io → {strategy, optimize, sim} → {pricing, estimation, tax, costs} �
 3. **Box 3 ≠ capital-gains:** projections must show **tax on assets**, not on premium income — a
    common modeling mistake for NL. Called out explicitly in §0.4.
 4. **`float` money precision:** premiums/fees accumulate rounding error over many cycles.
-   **Decision:** use `double` (or integer cents) in `tax/`, `costs/`, `strategy/` ledgers even
-   though toolbox math runs in `float`; convert at the boundary.
+   **Decision (settled, T1.1):** cash is `fin::core::Money`, an `int64_t` count of cents with a
+   currency tag and half-to-even rounding; `double` is used for rates/volatilities and converted to
+   the toolbox's `float` only at the call boundary. See
+   [money and rounding](documentation/theory/money-and-rounding.md).
 5. **No live data / no DEGIRO API:** v1 is snapshot-driven; documented clearly.
 6. **Model risk:** Black–Scholes/GBM understates tail/assignment risk. Mitigation: Monte-Carlo
    distributions + explicit disclaimer.
@@ -288,46 +337,56 @@ Each task is meant to be one commit/PR: it adds one type or one behaviour, plus 
 leaves `ctest --preset host-Debug` green.
 
 **Conventions that apply to every task**
-- One public type per header, PascalCase filenames, `namespace fin::<module>`.
+- One public type per header, PascalCase filenames, `namespace fin::<module>`; headers use
+  `#pragma once`.
+- Code carries no comments — names, types and tests are the documentation, and the *why* lives in
+  `documentation/`.
 - Every task ships GoogleTest coverage in the module's `test/` directory; no task is "done"
   without tests.
 - No magic numbers: anything a user could plausibly want to change goes into `config/`.
 - Money is `Money` (integer cents), never `float`/`double` — see §6.4.
 - Toolbox types are only used *inside* a module; they never leak through a public `fin::` API.
+- Every epic ships documentation alongside the code (§3.1): a `documentation/design/` note for the
+  quantities and contracts it introduces, a `documentation/theory/` note for each non-obvious
+  formula or convention it implements, and a `documentation/design/decisions.md` entry for every
+  choice a reviewer could reasonably have made differently. Those notes describe the *model*, not
+  the code.
 
 Legend for **Size**: `S` ≈ a single sitting, `M` ≈ a focused session, `L` → should be split further
 if it grows.
 
 ---
 
-### Epic 0 — Foundation (M0)
+### Foundation (was Epic 0) — **complete**
 
-| ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
-|---|---|---|---|---|---|
-| T0.1 | Vendor the toolbox | `numerical-toolbox/` submodule pinned to `v3.0.0`; `.gitmodules` committed; `git submodule update --init --recursive` restores it | — | S | **done** |
-| T0.2 | Root CMake wiring | Root `CMakeLists.txt` fetches `emil` at the toolbox's pin, `add_subdirectory(numerical-toolbox)`, `add_subdirectory(source)`; project renamed `fin_bs`; options prefixed `FIN_BS_*` | T0.1 | M | **done** |
-| T0.3 | Host-only presets | `CMakePresets.json` reduced to `host`, `host-single-Debug`, `coverage`; embedded/tiva/stm32 presets and MCU toolchain references removed | T0.2 | S | **done** |
-| T0.4 | Smoke module | `source/core/` builds target `fin.core` linking `numerical.math`; one test asserts `math::Erfc` is reachable and Φ(0) = 0.5 | T0.2 | S | **done** |
-| T0.5 | CI green | `.github/workflows/ci.yml` configures `host`, builds `host-Debug`, runs `ctest`; embedded build jobs removed | T0.3 | M | **done** |
-| T0.6 | Project metadata | `README.md`, `sonar-project.properties`, `.ls-lint.yml`, `.github/copilot-instructions.md` describe *this* project, not e-foc | T0.5 | S | **done** |
+Delivered and removed from the backlog: the `numerical-toolbox` submodule pinned to `v3.0.0`, root
+CMake wiring that fetches `emil` at the toolbox's pin, host-only presets (`host`,
+`host-single-Debug`, `coverage`), the `fin.core` module with a toolbox-linkage test, a green CI
+workflow, and project metadata describing *this* project rather than the `e-foc` template it was
+scaffolded from.
 
-**Exit criteria:** clean clone → `cmake --preset host && cmake --build --preset host-Debug && ctest --preset host-Debug` passes.
+**Exit criteria (met):** clean clone → `cmake --preset host && cmake --build --preset host-Debug &&
+ctest --preset host-Debug` passes.
 
-Epic 0 removed the following e-foc leftovers, recoverable from git history if ever needed:
-the embedded build/release jobs, the Requirements Validation workflow, and the
-`cycle-analysis` / `validate-requirements` / `generate-requirements-pdf` composite actions.
-Release packaging is reduced to release-please only — artifact jobs come back with the CLI (T9.6).
+The e-foc leftovers this removed are recoverable from git history: the embedded build/release jobs,
+the Requirements Validation workflow, and the `cycle-analysis` / `validate-requirements` /
+`generate-requirements-pdf` composite actions. Release packaging is reduced to release-please only
+— artifact jobs come back with the CLI (T9.6).
 
 ---
 
-### Epic 1 — Core value types (new; prerequisite for everything)
+### Epic 1 — Core value types — **complete**
 
-| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
-|---|---|---|---|---|
-| T1.1 | `Money` | `source/core/Money.hpp` — `int64_t` cents, currency tag, `+ - * /`, banker's rounding, no implicit float conversion. Tests: associativity over 10k accumulations vs. exact integer reference; overflow guarded | T0.4 | M |
-| T1.2 | `Date` + day count | `Date.hpp` (civil date, no `<chrono>` zoneinfo dependency), `DayCount.hpp` with ACT/365F and ACT/252 → year fraction. Tests: leap years, expiry Fridays, known year-fraction pairs | T0.4 | S |
-| T1.3 | Strong scalar types | `Rate.hpp` (annualized, continuous vs. discrete), `Volatility.hpp`, `Delta.hpp` — prevent unit mix-ups at compile time. Tests: conversion round-trips | T0.4 | S |
-| T1.4 | `Contract` identity | `OptionContract.hpp`: underlying, expiry, strike (`Money`), `OptionType{Call,Put}`, multiplier (100). Tests: equality/ordering, multiplier applied to notional | T1.1, T1.2 | S |
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
+|---|---|---|---|---|---|
+| T1.1 | `Money` | `source/core/Money.hpp` — `int64_t` cents, currency tag, `+ - * /`, banker's rounding, no implicit float conversion. Tests: order-independent exactness over 10k accumulations vs. an integer reference; overflow, division-by-zero and currency mixing guarded (`EXPECT_DEATH`) | — | M | **done** |
+| T1.2 | `Date` + day count | `Date.hpp` (civil date as days since epoch, no `<chrono>` zoneinfo dependency), `DayCount.hpp` with ACT/365F and ACT/252 → year fraction. Tests: leap years, 200-year round-trip, expiry Fridays, known year-fraction pairs | — | S | **done** |
+| T1.3 | Strong scalar types | `Rate.hpp` (stored continuously compounded), `Volatility.hpp`, `Delta.hpp` — prevent unit mix-ups. Tests: conversion round-trips, growth/discount inverses, √t scaling, variance additivity | — | S | **done** |
+| T1.4 | `Contract` identity | `OptionContract.hpp`: underlying, expiry, strike (`Money`), `OptionType{Call,Put}`, multiplier (100). Tests: equality/ordering, multiplier applied to notional | T1.1, T1.2 | S | **done** |
+| T1.5 | Epic 1 documentation | `documentation/` scaffolding (`design/`, `theory/`, `validation/`, `TEMPLATE.md`) plus the quantities design note, five theory notes and decision log entries D1–D6 | T1.1–T1.4 | M | **done** |
+
+**Exit criteria (met):** `fin.core` exposes the project's vocabulary types; 62 tests green in both
+Debug and Release; every precondition is specified by an `EXPECT_DEATH` rather than a comment.
 
 ---
 
@@ -335,7 +394,7 @@ Release packaging is reduced to release-please only — artifact jobs come back 
 
 | ID | Task | Deliverable / Acceptance criteria | Deps | Size |
 |---|---|---|---|---|
-| T2.1 | Normal CDF | `pricing/NormalDistribution.hpp`: `Φ(x) = 0.5 * math::Erfc(-x/√2)`, plus pdf. Tests: Φ(0)=0.5, symmetry Φ(-x)=1-Φ(x), tail values vs. published table within 1e-7 | T0.4 | S |
+| T2.1 | Normal CDF | `pricing/NormalDistribution.hpp`: `Φ(x) = 0.5 * math::Erfc(-x/√2)`, plus pdf. Tests: Φ(0)=0.5, symmetry Φ(-x)=1-Φ(x), tail values vs. published table within 1e-7 | — | S |
 | T2.2 | Black–Scholes price | `pricing/BlackScholes.hpp` European call/put with continuous dividend yield `q`. Tests: ≥ 3 published reference prices (`EXPECT_NEAR`), **put–call parity** invariant, monotonicity in σ and in S | T2.1, T1.3 | M |
 | T2.3 | Greeks | `pricing/Greeks.hpp`: delta, gamma, theta, vega, rho. Tests: each Greek cross-checked against a central finite difference of T2.2 within 1e-4; gamma ≥ 0; call delta ∈ (0,1) | T2.2 | M |
 | T2.4 | Implied volatility | `pricing/ImpliedVolatility.hpp`: Newton on vega with bisection fallback and iteration cap. Tests: round-trip — price at σ then recover σ within 1e-5; converges for deep ITM/OTM; fails *gracefully* (no throw, returns `optional`) below intrinsic | T2.3 | M |
@@ -388,7 +447,7 @@ Release packaging is reduced to release-please only — artifact jobs come back 
 | T6.2 | `Box3TaxModel` | `tax/Box3TaxModel.hpp` — deemed return on 1-Jan asset value minus allowance × rate. Tests: worked examples hand-checked; boundary exactly at the allowance; zero and negative net-asset cases | T6.1 | M |
 | T6.3 | `DividendTax` | `tax/DividendTax.hpp` — 15% dividendbelasting withheld, modelled as a credit against Box 3. Tests: withholding + credit nets correctly; foreign-dividend leakage case | T6.1 | S |
 | T6.4 | Tax integration | Annual tax drag posted to the ledger on the peildatum. Tests: a full-year projection shows tax charged **on assets**, not on premium income (guards the §0.4 modelling mistake) | T6.2, T5.6 | M |
-| T6.5 | Validation log | `documentation/tax-validation.md` recording which Belastingdienst source each parameter came from and when it was checked | T6.1 | S |
+| T6.5 | Validation log | `documentation/validation/sources.md` gains a row per Box 3 parameter: value, Belastingdienst URL, date checked; `documentation/theory/box3-taxation.md` explains why the tax is on assets rather than on premium income | T6.1 | S |
 
 ---
 
@@ -396,7 +455,7 @@ Release packaging is reduced to release-please only — artifact jobs come back 
 
 | ID | Task | Deliverable / Acceptance criteria | Deps | Size |
 |---|---|---|---|---|
-| T7.1 | Deterministic RNG | `sim/Rng.hpp` — seeded PRNG + normal variates. Tests: same seed → identical stream; sample mean/variance within tolerance at n=1e6 | T0.4 | S |
+| T7.1 | Deterministic RNG | `sim/Rng.hpp` — seeded PRNG + normal variates. Tests: same seed → identical stream; sample mean/variance within tolerance at n=1e6 | — | S |
 | T7.2 | SDE path generator | `sim/GbmPathGenerator.hpp` — GBM integrated with the toolbox Runge-Kutta/Dormand-Prince integrators for the drift term. Tests: E[S_t] converges to `S_0 e^{μt}`; log-variance converges to `σ²t` | T7.1, T3.6 | M |
 | T7.3 | Simulation runner | `sim/MonteCarlo.hpp` — runs `WheelEngine` over N paths, collects terminal equity and CAGR. Tests: N=1 reproduces the deterministic projection of T5.6 | T7.2, T5.6 | M |
 | T7.4 | Distribution aggregation | `sim/OutcomeDistribution.hpp` — P5/P50/P95, max drawdown, assignment frequency. Tests: percentiles of a known distribution; monotone ordering P5 ≤ P50 ≤ P95 | T7.3 | S |
@@ -419,34 +478,39 @@ Release packaging is reduced to release-please only — artifact jobs come back 
 
 | ID | Task | Deliverable / Acceptance criteria | Deps | Size |
 |---|---|---|---|---|
-| T9.1 | JSON reading utility | `io/JsonReader.hpp` over emil's `infra/syntax/Json.hpp`, with typed errors. Tests: malformed JSON, wrong type, missing key each produce a distinct error | T0.4 | M |
+| T9.1 | JSON reading utility | `io/JsonReader.hpp` over emil's `infra/syntax/Json.hpp`, with typed errors. Tests: malformed JSON, wrong type, missing key each produce a distinct error | — | M |
 | T9.2 | Price CSV loader | `io/PriceCsvLoader.hpp` for `date,close`. Tests: golden file; unsorted dates rejected; duplicate dates rejected; CRLF tolerated | T1.2 | M |
 | T9.3 | Options chain loader | `io/ChainCsvLoader.hpp` for `expiry,strike,type,bid,ask,iv,delta`, behind an `io/ChainSource` interface so a live provider can be added later. Tests: golden file; crossed bid/ask rejected | T1.4 | M |
 | T9.4 | Scenario loader | `io/ScenarioLoader.hpp` — starting capital, underlying, horizon, target delta, roll rules, reinvestment policy, currency, links to tax + broker configs. Tests: `config/scenarios/example.json` round-trips | T9.1, T6.1, T4.4 | M |
 | T9.5 | Report writer | `io/ReportWriter.hpp` — year-by-year CSV + aligned console table (capital, premiums, assignments, fees, tax drag, ending equity, CAGR). Tests: golden output for a fixed projection | T5.6 | M |
 | T9.6 | CLI | `app/main.cpp` with subcommands `price`, `estimate`, `project`, `simulate`, `optimize`; `--scenario <file>`; non-zero exit on bad input. Tests: end-to-end run of the example scenario produces the golden report | T9.5, T8.4 | L → one subcommand per commit |
-| T9.7 | Methodology docs | `documentation/methodology.md` (formulas, assumptions, limits) + the §9 validation checklist filled in | T9.6 | M |
+| T9.7 | Methodology docs | `documentation/theory/methodology.md` tying the theory notes into one end-to-end description (formulas, assumptions, limits) + the §9 checklist in `documentation/validation/README.md` filled in | T9.6 | M |
 
 ---
 
 ### Suggested implementation order
 
-Epic 0 → Epic 1 → Epic 2 → Epic 3 → Epic 4 → Epic 5 → Epic 6 → Epic 7 → Epic 8 → Epic 9.
+Epic 1 → Epic 2 → Epic 3 → Epic 4 → Epic 5 → Epic 6 → Epic 7 → Epic 8 → Epic 9.
 
 The only useful reorderings: T9.1/T9.2 (loaders) can be pulled forward to feed real data into Epic 3,
 and Epic 4 can slip after Epic 5 if the ledger initially runs fee-free.
 
-**Next task to pick up:** T1.1 (`Money`).
+**Next task to pick up:** T2.1 (`NormalDistribution`), followed by
+`documentation/theory/black-scholes.md`.
 
 ---
 
 ## 9. Validation Checklist (do before trusting numbers)
+
+Tracked, with sources and dates, in
+[`documentation/validation/README.md`](documentation/validation/README.md).
+
 - [ ] Confirm the active-year **Box 3** parameters against Belastingdienst for your tax year.
 - [ ] Confirm current **DEGIRO fee schedule** for options/shares/AutoFX.
 - [ ] Black–Scholes prices/Greeks match an independent reference within tolerance.
 - [ ] Estimators recover known σ/μ from synthetic GBM.
 - [ ] Monte-Carlo mean converges to closed-form expectation.
-- [ ] Money math uses `double`/integer-cents, not `float`.
+- [x] Money math uses integer cents, not `float` — done in T1.1.
 
 ---
 
@@ -455,4 +519,5 @@ and Epic 4 can slip after Epic 5 if the ledger initially runs fee-free.
 2. Which **underlyings** (US ETFs in USD? EUR-denominated)? This drives the FX model.
 3. Your **tax year** and whether you're strictly a **private Box 3 investor**.
 4. Preferred **price-history source** for the estimators (which CSV format).
-5. `float` vs. `double` requirement — I recommend `double`/integer-cents for money.
+5. `float` vs. `double` requirement — settled: integer cents for money, `double` for rates and
+   volatilities (T1.1, decision D1/D3).

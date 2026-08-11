@@ -61,10 +61,19 @@ config/              tax, broker and scenario configuration (no rates in code)
 data/                user-provided price history and options-chain snapshots
 numerical-toolbox/   git submodule: numerical-toolbox-cpp
 source/              the project, one CMake target per module (fin.core, fin.pricing, ...)
-documentation/       methodology, tax notes, validation log
+documentation/       design notes, theory notes, and the validation log
 ```
 
 Each module carries its own `test/` directory; tests are GoogleTest and run on the host.
+
+## Documentation
+
+[`documentation/`](documentation/README.md) explains *why* the code looks the way it does and
+*which* formulas it implements:
+
+- [`design/`](documentation/design/) — API contracts, invariants and the numbered decision log.
+- [`theory/`](documentation/theory/) — the finance and maths, with derivations and worked examples.
+- [`validation/`](documentation/validation/) — authoritative sources for tax and fee parameters.
 
 ## License
 
