@@ -19,9 +19,11 @@ Mirrors [PLAN.md](../../PLAN.md) section 9. Most of these cannot be ticked yet; 
 model they refer to do not exist.
 
 - [ ] Active-year **Box 3** parameters confirmed against Belastingdienst.
-- [ ] Current **DEGIRO fee schedule** confirmed for options, shares and currency conversion.
+- [ ] Current **DEGIRO fee schedule** confirmed for options, shares and currency conversion -
+      shares, handling, connectivity and currency handling are confirmed; the **option contract
+      charge is not**, and it is the cost this project is most sensitive to.
 - [x] **Black-Scholes** prices and Greeks match an independent reference within tolerance.
-- [ ] **Estimators** recover a known $\sigma$ and $\mu$ from synthetic geometric Brownian motion.
+- [x] **Estimators** recover a known $\sigma$ and $\mu$ from synthetic geometric Brownian motion.
 - [ ] **Monte-Carlo** mean converges to the closed-form expectation.
 - [x] Cash arithmetic is counted in whole minor units, not in floating point.
 
@@ -35,3 +37,6 @@ model they refer to do not exist.
 | Contract multiplier | 100 by default, part of a contract's identity | [theory](../theory/option-contract-conventions.md) |
 | Option valuation | European with a continuous dividend yield | [theory](../theory/black-scholes.md), [D8](../design/decisions.md) |
 | Assignment | deterministic; early exercise modelled for dividends only | [theory](../theory/assignment-and-early-exercise.md), [D10](../design/decisions.md) |
+| Proportional costs | whole basis points, one rounding, half-to-even | [theory](../theory/broker-costs.md), [D18](../design/decisions.md) |
+| Configured cash | stated directly in minor units, never as a decimal | [D20](../design/decisions.md) |
+| Currency conversion | spot amount and handling cost reported separately | [theory](../theory/currency-conversion.md), [D19](../design/decisions.md) |

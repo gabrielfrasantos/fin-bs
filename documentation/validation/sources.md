@@ -5,7 +5,21 @@ history of what a rate used to be is what makes an old projection reproducible.
 
 | Parameter | Value | Applies to | Authoritative source | Checked on | Checked by |
 |---|---|---|---|---|---|
-| _(none yet)_ | | | | | |
+| Share commission, home market | EUR 2.00 per transaction | DEGIRO Basic account, Euronext Amsterdam | <https://www.degiro.nl/tarieven> (tariff page, stated peildatum 2025-10-01) | 2026-08-11 | project |
+| Handling charge | EUR 1.00 per transaction | DEGIRO Basic account; **not** charged on options and futures except OMX Nordics | <https://www.degiro.nl/tarieven> (tariff page footnote, stated peildatum 2025-10-01) | 2026-08-11 | project |
+| Exchange connectivity charge | 0.25% of portfolio value, capped at EUR 2.50 per exchange per calendar year; nil for Euronext Amsterdam and Brussels | DEGIRO Basic account | <https://www.degiro.nl/tarieven> (tariff page, stated peildatum 2025-10-01) | 2026-08-11 | project |
+| Currency handling (AutoFX) | 0.25% of the converted amount | DEGIRO Basic account, automatic conversion | <https://www.degiro.nl/tarieven> (tariff page, stated peildatum 2025-10-01) | 2026-08-11 | project |
+| Option contract charge | EUR 0.75 per contract | DEGIRO Basic account, Euronext Derivatives (Amsterdam) | **not yet confirmed** - the summary tariff page does not quote it; it must be read from the full tariff document at <https://www.degiro.nl/data/pdf/Tarievenoverzicht.pdf> | - | - |
+
+⚠️ The option contract charge is the single most influential cost in this project - a wheel strategy
+pays it on every leg of every cycle - and it is the one figure above that has **not** been confirmed
+against a published source. The value in the default configuration is a placeholder of the right
+order of magnitude. Confirm it before trusting any projection.
+
+Two further figures on the DEGIRO tariff page are recorded here because they bound cases this project
+does not yet model: manual currency conversion costs EUR 10.00 plus 0.25%, and connectivity for US
+options and futures is EUR 5.00 per exchange per calendar *month* rather than per year. Neither is in
+the default configuration.
 
 ## How to add a row
 

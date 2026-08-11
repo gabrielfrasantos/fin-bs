@@ -8,13 +8,16 @@ An **options income & compounding strategy estimator**: it projects the after-co
 growth of a covered-call / cash-secured-put ("wheel") strategy under **Dutch Box 3 taxation** and
 **DEGIRO** fees.
 
-- `numerical-toolbox/` - git submodule ([numerical-toolbox-cpp](https://github.com/embedded-pro/numerical-toolbox-cpp)),
-  an embedded DSP/control library. It supplies **numerics only**: regression, filters,
-  optimization, ODE integrators, `math::Erfc`. It has **no finance primitives**.
+- [numerical-toolbox-cpp](https://github.com/embedded-pro/numerical-toolbox-cpp) - fetched by CMake
+  at an exact pin, not vendored. An embedded DSP/control library supplying **numerics only**:
+  regression, filters, optimization, ODE integrators, `math::Erfc`. It has **no finance primitives**.
+- `embedded-infra-lib` (emil) - fetched by CMake too, and declared **before** the toolbox, which only
+  fetches emil itself when it is the top-level project. Provides `infra.util`, the `emil_*` CMake
+  helpers, and the JSON parser in `infra/syntax/Json.hpp`.
 - `source/` - everything finance-specific, written here: pricing, estimation, costs, tax,
   strategy, simulation, optimization, I/O, CLI.
-- `embedded-infra-lib` (emil) - fetched by CMake at configure time, not vendored. Provides
-  `infra.util`, the `emil_*` CMake helpers, and `infra/syntax/Json.hpp`.
+
+There are no submodules; a plain `git clone` plus a configure with network access is enough.
 
 Read [PLAN.md](../PLAN.md) before proposing design changes: it holds the architecture, the
 explicit modelling assumptions, and the Epic 0-9 task breakdown with acceptance criteria.
@@ -39,6 +42,13 @@ simulator. Do not reintroduce them.
 - **No magic numbers.** Tax rates, fee schedules and strategy parameters live in `config/*.json`
   and are loaded at runtime. Box 3 rules change yearly, so they are versioned per tax year
   (`config/tax/nl_<year>.json`) and must never be hardcoded.
+- **No vendor names in type names.** A broker, an exchange or a tax authority may appear in a
+  *configuration file* name, because a file holds one vendor's actual data. Code that applies that
+  data is generic: fees are applied by a broker-agnostic type, not by one named after a broker.
+- **Do not write a parser, and do not wrap one.** Configuration is read with emil's
+  `infra/syntax/JsonFileReader.hpp` and `JsonObjectNavigator.hpp`, which already own the document,
+  validate it and report a missing or mistyped key by name. A loader catches at the boundary and
+  reports; it adds no reading layer of its own. Do not add third-party dependencies.
 - **Box 3 is a wealth tax, not a capital-gains tax.** Tax is computed on portfolio value at the
   peildatum, *not* on premium income. Getting this wrong silently invalidates every projection.
 - **Toolbox types stay inside their module.** `numerical::`/`math::` types must not appear in a
@@ -77,4 +87,5 @@ Tests must be deterministic - no wall-clock time, no unseeded RNG, no network.
 - Update the relevant task row in [PLAN.md](../PLAN.md) section 8 when you complete one.
 - New tax or fee parameters require a note in `documentation/` recording the authoritative source
   and the date it was checked.
-- Do not add third-party dependencies; JSON/CSV parsing uses emil's `infra/syntax/Json.hpp`.
+- Changing a dependency pin means changing it in the root `CMakeLists.txt`; the emil pin must stay
+  in step with the one the toolbox declares for itself.

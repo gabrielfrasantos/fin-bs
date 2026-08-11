@@ -45,6 +45,8 @@ one day reverse.
   and refuses to express.
 - [Estimation contracts](design/estimation.md) - what a price history must be, what the estimators
   guarantee, and what they refuse to answer.
+- [Cost contracts](design/costs.md) - what a fee schedule must be, what the cost layer guarantees,
+  and where a schedule that is wrong is caught.
 - [Decision log](design/decisions.md) - numbered, dated modelling decisions.
 
 ### Theory
@@ -69,6 +71,10 @@ one day reverse.
   logarithm, fitting the slope, and how little the answer is known.
 - [Exponentially weighted volatility](theory/exponentially-weighted-volatility.md) - smoothing
   factors, half-lives, forgetting factors, and the trade between responsiveness and precision.
+- [Broker costs](theory/broker-costs.md) - charges per contract, per transaction and in proportion to
+  a portfolio, with a ceiling, and why the ceiling matters.
+- [Currency conversion](theory/currency-conversion.md) - the base currency, the spot rate, the
+  handling cost, and the cost of a round trip.
 
 ### Validation
 

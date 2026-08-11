@@ -53,11 +53,12 @@ ourselves** as a new library layer *on top* of the toolbox. This plan makes that
 
 ### 0.3 Environment & tooling assumptions
 - **Language/standard:** C++20, CMake ≥ 3.24, GoogleTest (matches the toolbox's conventions).
-- **Dependency wiring:** `numerical-toolbox-cpp` is vendored as a **git submodule** at
-  `numerical-toolbox/` (pinned to `v3.0.0`) and consumed with `add_subdirectory`. Because the
-  toolbox only `FetchContent`s `embedded-infra-lib` (emil) when it is the *top-level* project, this
-  repo must provide `emil` itself — it is fetched at the same pin the toolbox uses. Clone with
-  `git clone --recursive`, or run `git submodule update --init --recursive`.
+- **Dependency wiring:** both dependencies are **fetched by CMake** at configure time, each pinned to
+  an exact commit: `numerical-toolbox-cpp` (at `v3.0.0`) and `embedded-infra-lib` (emil). Nothing is
+  vendored and there are no submodules, so a plain `git clone` is enough. Because the toolbox only
+  `FetchContent`s emil when it is the *top-level* project, this repo declares and makes emil
+  available **first**, at the same pin the toolbox uses; that pin has to be kept in step with the
+  toolbox's own.
 - **Numeric types:** the toolbox is `float`-only. Our layer uses `double` for rates, volatilities
   and price paths, and **integer cents** for every cash amount; `float` appears only at the call
   boundary into a toolbox algorithm. See §6.4 and
@@ -164,7 +165,6 @@ fin-bs/
 ├── CMakePresets.json
 ├── PLAN.md                           # this file
 ├── README.md
-├── numerical-toolbox/                # git submodule → embedded-pro/numerical-toolbox-cpp @ v3.0.0
 ├── config/
 │   ├── tax/nl_2025.json              # Box 3 params (versioned per year)
 │   ├── broker/degiro.json            # fee schedule
@@ -176,7 +176,7 @@ fin-bs/
 │   ├── core/            # Money (integer cents), Date/DayCount, Rate      → fin.core
 │   ├── pricing/         # BlackScholes, Greeks, ImpliedVolatility         → fin.pricing
 │   ├── estimation/      # VolatilityEstimator, DriftEstimator             → fin.estimation
-│   ├── costs/           # DegiroFees, FxModel                             → fin.costs
+│   ├── costs/           # BrokerFees, FxModel                             → fin.costs
 │   ├── tax/             # Box3TaxModel, DividendTax                       → fin.tax
 │   ├── strategy/        # WheelEngine, Position, CompoundingLedger        → fin.strategy
 │   ├── sim/             # Rng, GbmPathGenerator, MonteCarlo               → fin.sim
@@ -272,10 +272,19 @@ Written so far: [quantities and their conventions](documentation/design/quantiti
 - `DividendTax`: 15% dividendbelasting on dividends of held shares (as leakage/credit).
 - **Tests:** worked examples from config produce hand-checked tax amounts; boundary at allowance.
 
-### 4.5 Costs (`source/costs/`)
-- `DegiroFees`: per-contract option fee, share transaction cost, connectivity fee, from config.
-- `FxModel`: EUR/USD conversion + AutoFX handling cost for USD underlyings.
-- **Tests:** fee totals for a known trade list.
+### 4.5 Costs (`source/costs/`) — implemented
+- `FeeSchedule`: plain data — per-contract option fee, share commission and handling fee per trade,
+  proportional connectivity cost with an annual cap per exchange, currency handling cost. Every
+  proportional cost is whole basis points; every fee is whole minor units.
+- `BrokerFees`: applies a schedule to a trade or a trade list, and strikes the annual connectivity
+  charge. `FxModel`: EUR base, spot conversion with the AutoFX handling cost reported separately.
+- `io/BrokerConfig` reads the schedule from `config/broker/degiro.json`; nothing about a broker's
+  prices is in the code.
+- **Tests:** hand-computed total for a known trade list, the cap boundary, contract-count scaling, and
+  a round trip that loses twice the handling cost less its square whatever the rate.
+- Design: [cost contracts](documentation/design/costs.md); theory:
+  [broker costs](documentation/theory/broker-costs.md),
+  [currency conversion](documentation/theory/currency-conversion.md).
 
 ### 4.6 Simulation (`source/sim/`)
 - `MonteCarlo`: simulates many GBM (or estimated-SDE) price paths using toolbox **Runge-Kutta**
@@ -359,10 +368,11 @@ if it grows.
 
 ### Foundation (was Epic 0) — **complete**
 
-Delivered and removed from the backlog: the `numerical-toolbox` submodule pinned to `v3.0.0`, root
-CMake wiring that fetches `emil` at the toolbox's pin, host-only presets (`host`,
-`host-single-Debug`, `coverage`), the `fin.core` module with a toolbox-linkage test, a green CI
-workflow, and project metadata describing *this* project rather than the `e-foc` template it was
+Delivered and removed from the backlog: both dependencies fetched by CMake at an exact pin
+(`numerical-toolbox-cpp` at `v3.0.0`, `embedded-infra-lib` at the pin the toolbox uses), host-only
+presets (`host`, `host-single-Debug`, `coverage`), the `fin.core` module with a toolbox-linkage test,
+a green CI workflow, and project metadata describing *this* project rather than the `e-foc` template
+it was
 scaffolded from.
 
 **Exit criteria (met):** clean clone → `cmake --preset host && cmake --build --preset host-Debug &&
@@ -434,14 +444,36 @@ reproduced by a test.
 
 ---
 
-### Epic 4 — Costs & FX (part of M4, pulled early — the ledger needs it)
+### Epic 4 — Costs & FX (part of M4, pulled early — the ledger needs it) — **complete**
 
-| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
-|---|---|---|---|---|
-| T4.1 | Fee schedule model | `costs/FeeSchedule.hpp` — plain data: per-contract option fee, per-trade share cost, % component with cap, annual connectivity fee per exchange | T1.1 | S |
-| T4.2 | `DegiroFees` | `costs/DegiroFees.hpp` applying a `FeeSchedule` to a trade list. Tests: hand-computed totals for a known 5-trade list; cap and minimum boundaries; contract count scaling | T4.1 | M |
-| T4.3 | `FxModel` | `costs/FxModel.hpp` — EUR base, rate + AutoFX handling cost in bps, applied on every USD-leg cashflow. Tests: round-trip EUR→USD→EUR loses exactly 2× the handling cost | T1.1 | S |
-| T4.4 | Broker config loader | `io/BrokerConfig.hpp` reads `config/broker/degiro.json` into a `FeeSchedule`. Tests: golden config parses; missing/negative fields rejected with a clear error | T4.1, T9.1 | M |
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
+|---|---|---|---|---|---|
+| T4.1 | Fee schedule model | `costs/FeeSchedule.hpp` - plain data: per-contract option fee, per-trade share commission and handling fee, proportional connectivity cost with an annual cap per exchange, currency handling cost | T1.1 | S | **done** |
+| T4.2 | `BrokerFees` | `costs/Trade.hpp` + `costs/BrokerFees.hpp` applying a `FeeSchedule` to a trade list. Tests: hand-computed total for a known 5-trade list; the connectivity cap exactly at, below and above the boundary; contract count scaling; options exempt from the handling fee | T4.1 | M | **done** |
+| T4.3 | `FxModel` | `costs/FxModel.hpp` - EUR base, spot rate + AutoFX handling cost in bps, reported separately from the converted amount. Tests: a round trip loses twice the handling cost less its square, whatever the rate | T1.1 | S | **done** |
+| T4.4 | Broker config loader | `io/BrokerConfig.hpp` reads `config/broker/degiro.json` into a `FeeSchedule`, using emil's own JSON file reader and object navigator - no reading layer of our own. Tests: the golden config parses; missing, mistyped, negative and out-of-range fields are each refused naming the offending key | T4.1 | M | **done** |
+| T4.5 | Epic 4 documentation | `design/costs.md`, two `theory/` notes (broker costs, currency conversion), decision log entries D16-D20, a `validation/sources.md` row per published DEGIRO parameter | T4.1-T4.4 | M | **done** |
+
+**Exit criteria (met):** `fin.costs` turns a trade list and a fee schedule into an exact cash charge
+and converts between currencies at a stated cost; `fin.io` reads a schedule from a dated configuration
+file and refuses a bad one by name; 45 tests green in both Debug and Release; no fee appears anywhere
+in the code.
+
+> **T9.1 turned out not to be a task.** It asked for a JSON reading utility over emil's parser with
+> typed errors. emil already provides one: `infra/syntax/JsonFileReader.hpp` owns and validates the
+> document and `JsonObjectNavigator.hpp` navigates it by key, refusing a missing or mistyped key by
+> name. The loader uses those directly and catches at the boundary. The one thing they do not do -
+> turn a decimal into an exact count of minor units - stopped being needed once configuration was
+> stated in minor units ([D20](documentation/design/decisions.md)). T9.1 is struck from Epic 9.
+
+> **Deviation from the original acceptance criteria for T4.1.** The plan placed the "percentage
+> component with cap" on the share transaction cost. The published DEGIRO tariff has no proportional
+> component on home-market share trades; the proportional-with-cap charge it does have is the annual
+> exchange connectivity fee. The model follows the tariff rather than the plan's guess, so the cap
+> boundary is still modelled and tested, on the charge that actually has one.
+
+> ⚠️ **The option contract charge is not yet confirmed against a published source.** It is the cost a
+> wheel strategy is most sensitive to. See [validation/sources.md](documentation/validation/sources.md).
 
 ---
 
@@ -495,12 +527,12 @@ reproduced by a test.
 
 ### Epic 9 — I/O, CLI, reports (M7)
 
-| ID | Task | Deliverable / Acceptance criteria | Deps | Size |
-|---|---|---|---|---|
-| T9.1 | JSON reading utility | `io/JsonReader.hpp` over emil's `infra/syntax/Json.hpp`, with typed errors. Tests: malformed JSON, wrong type, missing key each produce a distinct error | — | M |
+| ID | Task | Deliverable / Acceptance criteria | Deps | Size | Status |
+|---|---|---|---|---|---|
+| T9.1 | ~~JSON reading utility~~ | **struck** - emil already provides it: `infra/syntax/JsonFileReader.hpp` owns and validates a document, `JsonObjectNavigator.hpp` navigates it by key and refuses a missing or mistyped key by name. Loaders use those directly | — | — | **not needed** |
 | T9.2 | Price CSV loader | `io/PriceCsvLoader.hpp` for `date,close`. Tests: golden file; unsorted dates rejected; duplicate dates rejected; CRLF tolerated | T1.2 | M |
 | T9.3 | Options chain loader | `io/ChainCsvLoader.hpp` for `expiry,strike,type,bid,ask,iv,delta`, behind an `io/ChainSource` interface so a live provider can be added later. Tests: golden file; crossed bid/ask rejected | T1.4 | M |
-| T9.4 | Scenario loader | `io/ScenarioLoader.hpp` — starting capital, underlying, horizon, target delta, roll rules, reinvestment policy, currency, links to tax + broker configs. Tests: `config/scenarios/example.json` round-trips | T9.1, T6.1, T4.4 | M |
+| T9.4 | Scenario loader | `io/ScenarioLoader.hpp` — starting capital, underlying, horizon, target delta, roll rules, reinvestment policy, currency, links to tax + broker configs. Tests: `config/scenarios/example.json` round-trips | T6.1, T4.4 | M |
 | T9.5 | Report writer | `io/ReportWriter.hpp` — year-by-year CSV + aligned console table (capital, premiums, assignments, fees, tax drag, ending equity, CAGR). Tests: golden output for a fixed projection | T5.6 | M |
 | T9.6 | CLI | `app/main.cpp` with subcommands `price`, `estimate`, `project`, `simulate`, `optimize`; `--scenario <file>`; non-zero exit on bad input. Tests: end-to-end run of the example scenario produces the golden report | T9.5, T8.4 | L → one subcommand per commit |
 | T9.7 | Methodology docs | `documentation/theory/methodology.md` tying the theory notes into one end-to-end description (formulas, assumptions, limits) + the §9 checklist in `documentation/validation/README.md` filled in | T9.6 | M |
@@ -514,7 +546,7 @@ Epic 1 → Epic 2 → Epic 3 → Epic 4 → Epic 5 → Epic 6 → Epic 7 → Epi
 The only useful reorderings: T9.1/T9.2 (loaders) can be pulled forward to feed real data into Epic 3,
 and Epic 4 can slip after Epic 5 if the ledger initially runs fee-free.
 
-**Next task to pick up:** T4.1 (`FeeSchedule`), followed by T4.2 (`DegiroFees`).
+**Next task to pick up:** T5.1 (`Portfolio`), followed by T5.2 (`CompoundingLedger`).
 
 ---
 
@@ -524,7 +556,8 @@ Tracked, with sources and dates, in
 [`documentation/validation/README.md`](documentation/validation/README.md).
 
 - [ ] Confirm the active-year **Box 3** parameters against Belastingdienst for your tax year.
-- [ ] Confirm current **DEGIRO fee schedule** for options/shares/AutoFX.
+- [ ] Confirm the **DEGIRO option contract charge** — the rest of the fee schedule (shares, handling,
+      connectivity, AutoFX) was confirmed on 2026-08-11.
 - [ ] Black–Scholes prices/Greeks match an independent reference within tolerance.
 - [x] Estimators recover known σ/μ from synthetic GBM — done in T3.2/T3.4.
 - [ ] Monte-Carlo mean converges to closed-form expectation.

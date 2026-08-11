@@ -353,3 +353,132 @@ short windows and irrelevant at the scale this project runs at. The padding is e
 approximate, so the published limit is the only visible consequence of the underlying constraint.
 
 **Reconsider if** intraday data brings histories longer than the published limit into normal use.
+
+---
+
+## D16 - Cash in configuration is written as a decimal and read as an exact count of minor units
+
+*Date: 2026-08-11. Status: superseded by [D20](#d20---configuration-states-cash-in-minor-units).*
+
+**Context.** Fee schedules and tax parameters are edited by people, so they are written the way a
+tariff is published - a quarter of a euro is `0.25`, not `25`. Every cash amount inside the model is
+a whole count of minor units. Something has to bridge the two, and the obvious bridge is a binary
+floating-point number, which cannot represent most decimal fractions exactly.
+
+**Decision.** A configured amount is read from its decimal text as an integer part and a fractional
+part in fixed point, and converted to minor units by integer arithmetic. No binary float appears
+anywhere on the path from the file to the amount. An amount written more finely than one minor unit
+is refused, naming the key, rather than rounded.
+
+**Consequences.** A published tariff of a quarter of a euro becomes exactly twenty-five minor units,
+on every platform, forever - the configured value and the modelled value are the same number, so a
+schedule can be checked against the broker's published page by reading it. Refusing a third of a cent
+rather than rounding it means a schedule that cannot be represented is reported as an error at the
+boundary rather than silently becoming a schedule that is nearly right. The cost is that a genuinely
+sub-cent price - some venues quote per-share commissions that way - cannot be configured directly and
+would have to be re-expressed.
+
+**Reconsider if** a fee schedule appears whose prices are genuinely finer than a minor unit.
+
+---
+
+## D17 - A fee schedule is plain data, checked at the boundary and asserted at the point of use
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** Every other quantity in this project is a value with an invariant checked in its own
+constructor. A fee schedule is a bag of half a dozen unrelated numbers with no behaviour, arriving
+either from a file or from a caller writing a scenario, and those two origins fail in entirely
+different ways.
+
+**Decision.** The schedule itself is plain data with no constructor of its own. Its well-formedness -
+one currency, no negative fee, no proportional rate beyond the whole amount - is a question that can
+be asked of it. Reading a schedule from a file asks that question and *reports* a refusal, naming the
+key that caused it; charging a fee with a schedule *asserts* it and refuses to compute at all.
+
+**Consequences.** A malformed file produces a message a user can act on, and a malformed schedule
+built in code stops at the point where it entered rather than producing a plausible total that is
+quietly wrong. Naming the offending key matters more than it looks: a tariff has half a dozen
+similar-looking amounts, and "one of the fees is negative" is not a usable report. The cost is that
+the same conditions are expressed twice, once as a check and once as an assertion, and that a
+schedule can be passed around in a state that is not yet known to be valid.
+
+**Reconsider if** the number of configured schedules grows to the point where the two paths drift
+apart.
+
+---
+
+## D18 - Proportional costs are whole basis points
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** Brokers quote proportional costs as percentages - a quarter of a percent to convert
+currency, a quarter of a percent of portfolio value for exchange access. A percentage held as a
+decimal fraction is a floating-point number, and multiplying an exact count of minor units by an
+inexact fraction gives a charge that depends on the platform's rounding.
+
+**Decision.** Every proportional cost is held as a whole number of basis points, and a charge is the
+amount times the basis points divided by ten thousand, in integer arithmetic, rounded to the nearest
+minor unit with halves going to the even one.
+
+**Consequences.** The rate is exact, so only one rounding happens - the division - and it happens
+under the same rule as every other cash rounding in the project. Charges are reproducible and
+order-independent. The cost is that a rate finer than a basis point cannot be expressed; no published
+retail tariff this project models is quoted that finely, and a rate that fine would be swamped by the
+minor-unit rounding of the charge itself.
+
+---
+
+## D19 - A conversion and its cost are reported separately, and the cost has no direction
+
+*Date: 2026-08-11. Status: accepted.*
+
+**Context.** An automatic currency conversion can be modelled as a single effective rate - the spot
+rate reduced by the handling cost - which gives the correct net amount in one step. The alternative
+is to report the spot amount and the cost as two figures and let the caller subtract.
+
+**Decision.** The spot amount and the handling cost are separate results. The cost is computed on the
+size of the amount rather than on its signed value, so it is a cost whether money is coming in or
+going out, and it is charged in the currency the amount was converted into.
+
+**Consequences.** A ledger can post a conversion as two entries, and the annual report can show what
+currency handling cost over a projection - which is the whole point of modelling it. Charging on the
+size rather than the signed value means money paid out costs more than the amount paid, which is what
+actually happens and what a signed multiplication would get backwards. A round trip therefore loses
+twice the handling cost less its square, and that fraction is independent of the exchange rate, which
+makes it checkable without knowing any rate. The cost is one more figure for callers to handle and
+the obligation to state, every time, which currency a cost is expressed in.
+
+**Reconsider if** a broker charges conversion asymmetrically between directions.
+
+---
+
+## D20 - Configuration states cash in minor units
+
+*Date: 2026-08-11. Status: accepted. Supersedes D16.*
+
+**Context.** [D16](#d16---cash-in-configuration-is-written-as-a-decimal-and-read-as-an-exact-count-of-minor-units)
+had configured amounts written the way a tariff is published - a quarter of a euro as a decimal - and
+converted to minor units on the way in. That conversion was the only reason the project needed a
+reading layer of its own on top of the library that already parses the document: the library exposes
+whole numbers, strings and booleans by name, but nothing that turns a decimal into an exact count of
+minor units, and nothing that says a decimal was too fine to be one.
+
+**Decision.** A configured amount is a whole number of minor units, and the key says so. The
+published quarter of a euro is configured as twenty-five, not as `0.25`. Documents are then read
+entirely with the library's own file reader and navigator, which own the document, validate it and
+refuse a missing or mistyped key by name.
+
+**Consequences.** The project owns no reading layer at all - no decimal decoding, no fixed-point
+arithmetic, no separate error vocabulary to keep in step with the library's. The unit a value is
+configured in is the unit the model counts in, so there is no conversion to be wrong about and no
+"finer than a minor unit" case to handle: a fraction in a whole-number field is simply not a whole
+number, and is refused by name like any other mistyped value. The price is readability - a reviewer
+comparing the configuration against a broker's published page reads twenty-five where the page says a
+quarter of a euro - which is why the key carries the unit in its name. A second price is that the
+library reports a missing key and a mistyped key with the same wording, so the two are no longer
+distinguishable by kind, only by the message; for a configuration file, whose reader is a person
+looking at the file, the message is what matters.
+
+**Reconsider if** a configuration format arrives that this project does not control, and that quotes
+cash as decimals.
