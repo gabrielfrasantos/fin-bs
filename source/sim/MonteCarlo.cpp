@@ -49,6 +49,8 @@ namespace fin::sim
         auto equity = opening;
         std::int32_t assignments = 0;
         auto drawdown = 0.0;
+        std::vector<core::Money> equityByCycle{ opening };
+        equityByCycle.reserve(static_cast<std::size_t>(script.Cycles()) + 1u);
 
         for (std::int32_t cycle = 0; cycle != script.Cycles(); ++cycle)
         {
@@ -63,12 +65,15 @@ namespace fin::sim
                 if (row.assignment.Cents() != 0)
                     ++assignments;
             }
+
+            equityByCycle.push_back(equity);
         }
 
         return { .terminalEquity = equity,
             .growthRate = CompoundAnnualGrowth(opening, equity, script.Horizon()),
             .positions = script.Cycles(),
             .assignments = assignments,
-            .maximumDrawdown = drawdown };
+            .maximumDrawdown = drawdown,
+            .equityByCycle = std::move(equityByCycle) };
     }
 }

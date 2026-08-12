@@ -2,6 +2,74 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Run the estimator (GUI)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/host/source/app/Debug/fin.app",
+            "args": [
+                "${workspaceFolder}/config"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Build the estimator (Debug)",
+            "environment": [
+                {
+                    "name": "DISPLAY",
+                    "value": "host.docker.internal:0.0"
+                },
+                {
+                    "name": "QT_QPA_PLATFORM",
+                    "value": "xcb"
+                },
+                {
+                    "name": "QT_X11_NO_MITSHM",
+                    "value": "1"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "logging": {
+                "programOutput": true,
+                "engineLogging": false
+            },
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Run the estimator (offscreen)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/host/source/app/Debug/fin.app",
+            "args": [
+                "${workspaceFolder}/config"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Build the estimator (Debug)",
+            "environment": [
+                {
+                    "name": "QT_QPA_PLATFORM",
+                    "value": "offscreen"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "Linux Debug",
             "type": "cppdbg",
             "request": "launch",

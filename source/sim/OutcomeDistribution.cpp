@@ -39,6 +39,11 @@ namespace fin::sim
         return ordered.size();
     }
 
+    std::span<const PathOutcome> OutcomeDistribution::Outcomes() const
+    {
+        return ordered;
+    }
+
     const PathOutcome& OutcomeDistribution::At(std::int32_t percentile) const
     {
         really_assert(percentile > 0 && percentile <= wholeDistribution);

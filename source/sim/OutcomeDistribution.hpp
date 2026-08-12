@@ -2,6 +2,7 @@
 
 #include "source/core/Money.hpp"
 #include <cstdint>
+#include <span>
 #include <vector>
 
 namespace fin::sim
@@ -13,6 +14,7 @@ namespace fin::sim
         std::int32_t positions;
         std::int32_t assignments;
         double maximumDrawdown;
+        std::vector<core::Money> equityByCycle;
     };
 
     class OutcomeDistribution
@@ -21,6 +23,7 @@ namespace fin::sim
         static OutcomeDistribution Of(std::vector<PathOutcome> outcomes);
 
         std::size_t Paths() const;
+        std::span<const PathOutcome> Outcomes() const;
         const PathOutcome& At(std::int32_t percentile) const;
         core::Money Equity(std::int32_t percentile) const;
         double GrowthRate(std::int32_t percentile) const;

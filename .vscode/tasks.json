@@ -1,0 +1,50 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Configure (host)",
+            "type": "shell",
+            "command": "cmake --preset host",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build the estimator (Debug)",
+            "type": "shell",
+            "command": "cmake --build --preset host-Debug --target fin.app",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Build everything (Debug)",
+            "type": "shell",
+            "command": "cmake --build --preset host-Debug",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Run the estimator",
+            "type": "shell",
+            "command": "./build/host/source/app/Debug/fin.app \"${workspaceFolder}/config\"",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "QT_QPA_PLATFORM": "xcb"
+                }
+            },
+            "dependsOn": "Build the estimator (Debug)",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Test (Debug)",
+            "type": "shell",
+            "command": "ctest --preset host-Debug --output-on-failure",
+            "problemMatcher": []
+        }
+    ]
+}

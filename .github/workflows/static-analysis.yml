@@ -41,6 +41,12 @@ jobs:
           key: ${{ github.job }}
           max-size: 2G
           save: ${{ github.ref == 'refs/heads/main' }}
+      - name: Install Qt's runtime dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-x11-0
+      - uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+        with:
+          version: "6.8.*"
+          cache: true
       - name: Build & Collect Coverage
         run: |
           cmake --preset coverage -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
