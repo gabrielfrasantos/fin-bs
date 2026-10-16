@@ -47,6 +47,7 @@ jobs:
         with:
           version: "6.8.*"
           cache: true
+          install-deps: nosudo
       - name: Build & Collect Coverage
         run: |
           cmake --preset coverage -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
