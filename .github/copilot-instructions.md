@@ -1,71 +1,91 @@
-# e-foc — Copilot / AI agent instructions
+# fin-bs - Copilot / AI agent instructions
 
-This file is a concise, task-oriented guide for AI coding agents to be immediately productive in this repository.
+Task-oriented guide for AI coding agents working in this repository.
 
-1) Big-picture architecture (short)
-- Purpose: Field-Oriented Control (FOC) for BLDC/PMSM with strict realtime and memory constraints.
-- Major components:
-  - `source/` — FOC implementations, hardware adapters, application code (formerly `application/motors`).
-  - `source/services/` — Application-level services (coordination, scheduling, helpers).
-  - `numerical-toolbox/` — Generic numerical algorithms (PID, filters, fixed-point helpers).
-  - `embedded-infra-lib/` — Infrastructure: bounded containers, build helpers, toolchain cmake pieces.
-  - `source/tool/simulator/` — Host simulation models for validation.
-  - `source/tool/can_commander/` — CAN bus command interface tool.
-- Interaction: `source/` implements control logic and uses `hal/` adapters from `embedded-infra-lib` and algorithms from `numerical-toolbox`.
+## 1. What this project is
 
-2) Critical developer workflows (exact commands)
-- Clone (with submodules):
-  - `git clone --recursive <repo>`
-- Configure & build host (recommended first step):
-  - `cmake --preset host`
-  - `cmake --build --preset host-Debug`
-- Run unit tests (GoogleTest):
-  - `ctest --preset host-Debug`
-- Build embedded target (example board):
-  - `cmake --preset EK-TM4C1294XL`
-  - `cmake --build --preset EK-TM4C1294XL-Debug`
-- Coverage/analysis presets are defined in `CMakePresets.json` — use `coverage` preset for coverage builds.
+An **options income & compounding strategy estimator**: it projects the after-cost, after-tax
+growth of a covered-call / cash-secured-put ("wheel") strategy under **Dutch Box 3 taxation** and
+**DEGIRO** fees.
 
-3) Project-specific constraints and conventions (must follow these)
-- NO HEAP: avoid `new/delete`, `malloc/free`, `std::make_unique`, etc.
-- NO dynamic STL containers in embedded code: use `infra::BoundedVector`, `infra::BoundedString`, etc. (see `embedded-infra-lib`).
-- Prefer fixed-size integer types (`uint8_t`, `int32_t`, ...).
-- Avoid recursion and virtual calls in ISR/hot paths.
-- Favor `constexpr`, `inline`, and `const` correctness for performance.
+- [numerical-toolbox-cpp](https://github.com/embedded-pro/numerical-toolbox-cpp) - fetched by CMake
+  at an exact pin, not vendored. An embedded DSP/control library supplying **numerics only**:
+  regression, filters, optimization, ODE integrators, `math::Erfc`. It has **no finance primitives**.
+- `embedded-infra-lib` (emil) - fetched by CMake too, and declared **before** the toolbox, which only
+  fetches emil itself when it is the top-level project. Provides `infra.util`, the `emil_*` CMake
+  helpers, and the JSON parser in `infra/syntax/Json.hpp`.
+- `source/` - everything finance-specific, written here: pricing, estimation, costs, tax,
+  strategy, simulation, optimization, I/O, CLI.
 
-4) Patterns & code locations (concrete examples)
-- Add a new FOC algorithm:
-  - Implement code in `source/foc/implementations/` and keep public interfaces in `source/foc/interfaces/`.
-  - Motor-specific application code now lives under `source/application/` (renamed from `application/motors`).
-- Hardware abstraction & factory: see `source/hardware/HardwareFactory.hpp` for how peripherals and adapters are created and injected.
-- Numerical algorithms: follow patterns in `numerical-toolbox/` — implement float first, then Q15/Q31 variants, and add typed GoogleTest suites.
+There are no submodules; a plain `git clone` plus a configure with network access is enough.
 
-5) Testing & CI expectations
-- Unit tests run on host using GoogleTest. Use typed tests for multiple numeric types (float, Q15, Q31).
-- Prefer small, deterministic tests that do not require hardware.
-- If adding platform-specific tests, provide host stubs/mocks in `source/hardware/Host/`.
+Read [PLAN.md](../PLAN.md) before proposing design changes: it holds the architecture, the
+explicit modelling assumptions, and the Epic 0-9 task breakdown with acceptance criteria.
 
-6) Build system tips
-- Presets are the primary interface: see `CMakePresets.json` to pick host vs embedded and board presets.
-- Toolchains for embedded boards live under `embedded-infra-lib/cmake/toolchain-*.cmake`.
-- `compile_commands.json` is generated in build dirs; use it for language server/analysis.
+## 2. Build & test
 
-7) What to preserve from existing docs
-- There is an existing, detailed guidance file for the numerical toolbox at `numerical-toolbox/.github/copilot-instructions.md` — preserve algorithm-level constraints from there when editing numerical code.
+```sh
+cmake --preset host
+cmake --build --preset host-Debug
+ctest --preset host-Debug
+```
 
-8) When making changes, be explicit
-- Update corresponding `doc/` entries for algorithms and any example in `examples/`.
-- For algorithmic code, include numerical properties (stability, range, complexity) in `doc/`.
+Presets are the only supported interface: `host` (multi-config), `host-single-Debug`, `coverage`.
+This is a **host-only desktop project** - there are no embedded targets, no MCU toolchains, no
+simulator. Do not reintroduce them.
 
-9) Quick pointers for reviewers / code suggestions
-- If suggesting new APIs, prefer interface-driven DI and small, testable functions.
-- For performance changes, provide before/after size/runtime metrics and ensure host tests cover correctness.
+## 3. Project-specific rules (these override general C++ habits)
 
-10) Performance optimization
-- For performance-critical code (FOC, PID, ISRs), see `documentation/performance-optimization/README.md`.
-- Key techniques: avoid virtual dispatch in hot paths, use `#pragma GCC optimize("O3", "fast-math")` for critical files, prefer static inline functions over virtual methods.
-- Debug builds use `-Og` to maintain debuggability while enabling basic optimizations.
-- Use `arm-none-eabi-objdump -d -C` to analyze generated assembly and verify optimizations.
-- Target cycle budgets: FOC loop should complete in <400 cycles at 120 MHz for 20 kHz control rate.
+- **Money is never floating point.** Use `fin::core::Money` (integer cents). `float`/`double` are
+  fine for volatility, rates and price paths, but any cash amount, fee or tax figure is `Money`.
+  Convert at the boundary.
+- **No magic numbers.** Tax rates, fee schedules and strategy parameters live in `config/*.json`
+  and are loaded at runtime. Box 3 rules change yearly, so they are versioned per tax year
+  (`config/tax/nl_<year>.json`) and must never be hardcoded.
+- **No vendor names in type names.** A broker, an exchange or a tax authority may appear in a
+  *configuration file* name, because a file holds one vendor's actual data. Code that applies that
+  data is generic: fees are applied by a broker-agnostic type, not by one named after a broker.
+- **Do not write a parser, and do not wrap one.** Configuration is read with emil's
+  `infra/syntax/JsonFileReader.hpp` and `JsonObjectNavigator.hpp`, which already own the document,
+  validate it and report a missing or mistyped key by name. A loader catches at the boundary and
+  reports; it adds no reading layer of its own. Do not add third-party dependencies.
+- **Box 3 is a wealth tax, not a capital-gains tax.** Tax is computed on portfolio value at the
+  peildatum, *not* on premium income. Getting this wrong silently invalidates every projection.
+- **Toolbox types stay inside their module.** `numerical::`/`math::` types must not appear in a
+  public `fin::` API; wrap them.
+- One public type per header, PascalCase filenames, `namespace fin::<module>`.
+- Headers use `#pragma once`.
+- Code carries no comments: names, types and tests are the documentation. The *why* lives in
+  `documentation/`, which is written in domain terms and never refers to code.
+- Heap use is allowed (this is a desktop tool), but prefer value semantics and bounded containers
+  where it costs nothing.
 
-If any section appears incomplete or you want deeper coverage (build-on-target, hardware flashing steps, or CI specifics), tell me which area to expand.
+## 4. Layout & dependency direction
+
+```
+app -> io -> {strategy, optimize, sim} -> {pricing, estimation, tax, costs} -> core -> numerical-toolbox
+```
+
+Each module is a CMake target named `fin.<module>` in `source/<module>/`, with tests in
+`source/<module>/test/` registered via `emil_add_test`, mirroring the toolbox's own convention.
+
+## 5. Testing expectations
+
+GoogleTest on the host; every change ships tests. Assert **properties and invariants**, not golden
+numbers pulled from your own implementation:
+
+- Pricing: put-call parity, monotonicity in sigma and S, Greeks vs. central finite differences,
+  published reference prices.
+- Estimators: recover known parameters from synthetic GBM with a fixed seed.
+- Ledger/tax: hand-checked worked examples, boundary cases (exactly at the allowance, zero, empty).
+- Monte-Carlo: convergence to the closed-form expectation; fixed seed so CI is deterministic.
+
+Tests must be deterministic - no wall-clock time, no unseeded RNG, no network.
+
+## 6. When making changes
+
+- Update the relevant task row in [PLAN.md](../PLAN.md) section 8 when you complete one.
+- New tax or fee parameters require a note in `documentation/` recording the authoritative source
+  and the date it was checked.
+- Changing a dependency pin means changing it in the root `CMakeLists.txt`; the emil pin must stay
+  in step with the one the toolbox declares for itself.

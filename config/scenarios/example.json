@@ -1,0 +1,49 @@
+{
+    "scenario": "Three names wheeled side by side out of one pot",
+    "currency": "EUR",
+    "capital_cents": 20000000,
+    "start_date": "2026-01-05",
+    "cycles": 6,
+    "days_per_cycle": 182,
+    "observation_days_before_expiry": 14,
+    "target_delta_basis_points": 3000,
+    "cash_buffer_basis_points": 500,
+    "roll_delta_limit_basis_points": 5000,
+    "roll_days_to_expiry": 7,
+    "roll_profit_capture_basis_points": 8000,
+    "risk_free_rate_basis_points": 250,
+    "assessment": {
+        "month": 1,
+        "day": 1
+    },
+    "paths": 256,
+    "seed": 20250811,
+    "tax_configuration": "tax/nl_2025.json",
+    "broker_configuration": "broker/degiro.json",
+    "underlyings": [
+        {
+            "ticker": "AEX",
+            "spot_cents": 9500,
+            "drift_basis_points": 600,
+            "volatility_basis_points": 2200,
+            "dividend_yield_basis_points": 180,
+            "strike_increment_cents": 100
+        },
+        {
+            "ticker": "ASML",
+            "spot_cents": 68000,
+            "drift_basis_points": 900,
+            "volatility_basis_points": 3400,
+            "dividend_yield_basis_points": 90,
+            "strike_increment_cents": 500
+        },
+        {
+            "ticker": "SHELL",
+            "spot_cents": 3200,
+            "drift_basis_points": 400,
+            "volatility_basis_points": 2600,
+            "dividend_yield_basis_points": 400,
+            "strike_increment_cents": 50
+        }
+    ]
+}

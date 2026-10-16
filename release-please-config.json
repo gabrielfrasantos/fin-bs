@@ -6,9 +6,10 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "package-name": "e-foc",
+      "package-name": "fin-bs",
       "extra-files": [
-        "CMakeLists.txt"
+        "CMakeLists.txt",
+        "sonar-project.properties"
       ]
     }
   },

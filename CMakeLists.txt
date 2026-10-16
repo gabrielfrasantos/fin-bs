@@ -1,94 +1,56 @@
 cmake_minimum_required(VERSION 3.24)
 
-if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    set(E_FOC_STANDALONE On)
-endif()
-
 option(CMAKE_COMPILE_WARNING_AS_ERROR "Enable warnings-as-error" On)
-option(E_FOC_INCLUDE_DEFAULT_INIT "Include default initialization code; turn off when providing custom initialization" On)
-option(E_FOC_BUILD_TESTS "Enable build of the examples" Off)
-option(E_FOC_BUILD_SIMULATOR "Build the host simulator executables" Off)
+option(FIN_BS_BUILD_TESTS "Enable build of the tests" Off)
 
-if (E_FOC_BUILD_TESTS)
+if (FIN_BS_BUILD_TESTS)
     set(BUILD_TESTING On)
 endif()
 
-set(HALST_INCLUDE_DEFAULT_LINKER_SCRIPTS Off CACHE INTERNAL "")
-set(HALST_BUILD_EXAMPLES Off CACHE INTERNAL "")
+# Both dependencies are fetched, not vendored. numerical-toolbox only fetches embedded-infra-lib
+# when it is the top-level project, so as its parent we fetch emil ourselves, at the same pin.
+# Keep the emil GIT_TAG in sync with the FetchContent_Declare in numerical-toolbox's CMakeLists.
+include(FetchContent)
 
-if(DEFINED EMIL_SEGGER_RTT_BUFFER_SIZE_UP)
-    set(SEGGER_RTT_BUFFER_SIZE_UP ${EMIL_SEGGER_RTT_BUFFER_SIZE_UP} CACHE INTERNAL "")
-endif()
+FetchContent_Declare(
+    emil
+    GIT_REPOSITORY https://github.com/embedded-pro/embedded-infra-lib.git
+    GIT_TAG        2848dbf163a6ebf159e29f7f4f73b96f7773d20d # Unreleased
+)
 
-add_definitions(-DEMIL_ENABLE_TRACING=1)
+FetchContent_Declare(
+    numerical_toolbox
+    GIT_REPOSITORY https://github.com/embedded-pro/numerical-toolbox-cpp.git
+    GIT_TAG        a210d346e87535ddaa4ff61ea575ec89a9c0310c # v3.0.0
+)
 
-if(DEFINED E_FOC_TARGET_BOARD)
-    add_definitions(-DE_FOC_TARGET_BOARD="${E_FOC_TARGET_BOARD}")
-else()
-    add_definitions(-DE_FOC_TARGET_BOARD="host")
-endif()
-
-project(e_foc LANGUAGES C CXX ASM VERSION 0.0.1) # x-release-please-version
-
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED On)
-
-# Use -Og for Debug builds on GCC/Clang to enable optimizations while maintaining debuggability
-# This significantly improves FOC real-time performance in Debug builds
-if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    set(CMAKE_C_FLAGS_DEBUG "-Og -g" CACHE STRING "C Debug flags" FORCE)
-    set(CMAKE_CXX_FLAGS_DEBUG "-Og -g" CACHE STRING "C++ Debug flags" FORCE)
-endif()
-
-set_directory_properties(PROPERTY USE_FOLDERS ON)
-
-set(E_FOC_EXCLUDE_FROM_ALL "")
-
+set(EMIL_INCLUDE_MBEDTLS Off CACHE BOOL "" FORCE)
 set(EMIL_INCLUDE_ECHO Off CACHE BOOL "" FORCE)
 set(EMIL_FETCH_ECHO_COMPILERS Off CACHE BOOL "" FORCE)
 set(EMIL_BUILD_ECHO_COMPILERS Off CACHE BOOL "" FORCE)
 set(EMIL_ENABLE_DOCKER_TOOLS Off CACHE BOOL "" FORCE)
 
-add_subdirectory(embedded-infra-lib)
+FetchContent_MakeAvailable(emil)
 
-if (E_FOC_BUILD_TESTS)
+project(fin_bs LANGUAGES C CXX VERSION 0.0.1) # x-release-please-version
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED On)
+
+set_directory_properties(PROPERTY USE_FOLDERS ON)
+
+# Qt is whatever the machine has: required here so a missing or too-old install fails at configure time.
+find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Test)
+
+if (FIN_BS_BUILD_TESTS)
     include(CTest)
     emil_enable_testing()
 endif()
 
-if (DEFINED TARGET_MCU_VENDOR)
-    add_subdirectory(hal/${TARGET_MCU_VENDOR})
-    emil_exclude_directory_from_coverage(hal/${TARGET_MCU_VENDOR})
-endif()
-
-add_subdirectory(numerical-toolbox)
+FetchContent_MakeAvailable(numerical_toolbox)
 add_subdirectory(source)
 
-emil_clangformat_directories(e_foc DIRECTORIES source)
+emil_clangformat_directories(fin_bs DIRECTORIES source)
 emil_folderize_all_targets()
-emil_exclude_directory_from_coverage(embedded-infra-lib)
-emil_coverage_targets(DIRECTORIES .)
-
-include(scripts/development_environment.cmake)
-
-if (DEFINED TARGET_MCU)
-    generate_development_environment_script(
-        TARGET_MCU "${TARGET_MCU}"
-        GDB_PORT "2334"
-    )
-endif()
-
-set(CPACK_GENERATOR "ZIP;TGZ")
-set(CPACK_SOURCE_IGNORE_FILES ".vs/;.git/;build/")
-set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
-set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_PACKAGE_DESCRIPTION "${PROJECT_DESCRIPTION}")
-set(CPACK_DEBIAN_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
-set(CPACK_RPM_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
-set(CPACK_PACKAGE_HOMEPAGE_URL "${PROJECT_HOMEPAGE_URL}")
-set(CPACK_PACKAGE_MAINTAINER "${CPACK_PACKAGE_VENDOR}")
-set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_VENDOR}")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
-set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
-
-include(CPack)
+emil_exclude_directory_from_coverage(${numerical_toolbox_SOURCE_DIR})
+emil_coverage_targets(DIRECTORIES source)
