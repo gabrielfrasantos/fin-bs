@@ -27,9 +27,27 @@ No code was changed by the audit itself; fixes are a separate decision per findi
 | 6 | `source/pricing` | [06-pricing.md](06-pricing.md) | done 2026-10-19 | 0 | 0 | 1 | 3 | 2 |
 | 7 | `source/strategy` | [07-strategy.md](07-strategy.md) | done 2026-10-19 | 0 | 2 | 2 | 7 | 4 |
 | 8 | `source/tax` | [08-tax.md](08-tax.md) | done 2026-10-19 | 0 | 0 | 2 | 4 | 4 |
-| 9 | `source/sim` | 09-sim.md | pending | | | | | |
+| 9 | `source/sim` | [09-sim.md](09-sim.md) | done 2026-10-19 | 0 | 1 | 3 | 6 | 3 |
 
 `present`, `gui` and `app` are display code and are out of scope.
+
+## Where to start
+
+All nine phases are done. Across them: 0 Critical, 7 High, 19 Medium, 46 Low, 24 Info. The
+arithmetic of every layer reproduced independently; the findings that matter for real money are
+about what the chain does not do and what stops it.
+
+1. A charge the free cash cannot meet aborts the process. The shipped example scenario dies at
+   path 3,470 of a 10,000-path run (SIM-1, STRAT-1). Decide what an insolvent path means.
+2. No dividend is ever received while options are priced with a yield (STRAT-2); the dividend
+   model that exists caps domestic withholding wrongly (TAX-2).
+3. Premiums are fair value at the path's own volatility with no spread (SIM-3), the roll leaves
+   capital idle until the next boundary (STRAT-4), and the optimiser's result depends on its step
+   size (OPT-1) and on the path count through the worst drawdown (SIM-4).
+4. The numerical toolbox's `fast-math` pragma reaches seven project files; in Release builds the
+   estimators accept NaN parameters (ESTIM-1). The push/pop wrap is a two-line fix per file.
+5. The classification of brokerage cash for Box 3 is fixed in code (TAX-1), the assignment charge
+   is an assumption (COSTS-3), and two validation figures remain unconfirmed (COSTS-9, TAX-8).
 
 ## Method, applied identically in every phase
 
