@@ -169,8 +169,8 @@ dsm-firmenich is absent from the top-10 list and carries 35% Swiss withholding. 
 Brussels) is over the guideline with liquidity unknown. Euronext N.V. (about EUR 170) and
 D'Ieteren (about EUR 176) were set aside at the quick check. UCB, Ackermans & van Haaren, Sofina,
 argenx, Lotus Bakeries, ASML, ASM International and Adyen were dropped before sheets because one
-contract exceeds 10% of capital (ASML despite being fourth in the top-10 list). Several of these have 10-share or 1-share mini
-classes, which this note does not model.
+contract exceeds 10% of capital (ASML despite being fourth in the top-10 list). Several of these
+have 10-share or 1-share mini classes, which this note does not model.
 
 **Bid targets and corporate actions.** Akzo Nobel (pending merger of equals with Axalta; a live
 class with weekly expiries and a price near EUR 59 remain, so it could be a Materials alternate if
