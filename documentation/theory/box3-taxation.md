@@ -131,11 +131,14 @@ tax of nothing and a wealth tax of several hundred.
   one portfolio assumes that portfolio is all the wealth the investor has. An investor with other
   assets is charged more than the projection says.
 - **The charge has to be paid out of something.** Cash that is committed as collateral against a
-  written option cannot also settle a tax bill; a strategy that commits every last unit has nothing
-  left to pay with.
-- **Only wealth is modelled, never debt.** The published rules also impute a negative return to
-  borrowings above a threshold. The strategy described by this project never borrows, so that term is
-  out of scope; a projection for an investor with debts would understate their position.
+  written option cannot also settle a tax bill; a strategy that commits every last unit borrows the
+  shortfall and repays it from what comes in next, at the broker's debit rate
+  ([decision D50](../design/decisions.md)).
+- **Only wealth is modelled, never debt as its own class.** The published rules also impute a
+  negative return to borrowings above a threshold. The strategy described by this project never
+  borrows on purpose; a balance the tax itself drove below zero is netted against the investments
+  before the charge is computed, which is an approximation, and a projection for an investor with
+  other debts would understate their position.
 - **The percentages are set per year and change every year.** Some of them are provisional when the
   year begins and are fixed only afterwards. A projection over a horizon of years is therefore using
   the current year's rules as a forecast of future ones, which is an assumption, not a fact.

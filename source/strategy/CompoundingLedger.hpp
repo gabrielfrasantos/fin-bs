@@ -15,7 +15,8 @@ namespace fin::strategy
         Assignment,
         Dividend,
         Tax,
-        Fx
+        Fx,
+        Interest
     };
 
     struct Cashflow

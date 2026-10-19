@@ -80,6 +80,17 @@ once per calendar year for each exchange that was traded on or that holds a posi
 is not charged. Because the proportional part is capped, the charge is a constant for any portfolio
 above $10^4 c / b_c$ - with the published figures, above one thousand units of the base currency.
 
+### Debit interest
+
+$$
+\text{interest on a balance } B < 0 \text{ owed for } d \text{ days} = \left[\frac{-B \cdot b_d \cdot d}{10^4 \cdot 365}\right]
+$$
+
+where $b_d$ is the annual debit rate in basis points and $[\cdot]$ rounds to the nearest minor unit,
+halves going to the even one. A balance that owes nothing is charged nothing. The projection charges
+it on the balance at a cycle's opening for the length of the cycle, which is an approximation stated
+in [decision D50](../design/decisions.md).
+
 ## Worked example
 
 With the published schedule - $f_o = 0.75$, $f_s = 2.00$, $f_h = 1.00$, $b_c = 25$, $c = 2.50$, all

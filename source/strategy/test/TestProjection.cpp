@@ -48,7 +48,8 @@ namespace
             .handlingFeePerTrade = Euro(1.00),
             .connectivityFeeCapPerExchangePerYear = Euro(2.50),
             .connectivityBasisPoints = 25,
-            .currencyHandlingBasisPoints = 25 });
+            .currencyHandlingBasisPoints = 25,
+            .debitInterestBasisPoints = 690 });
     }
 
     Box3TaxModel Rules()
@@ -449,4 +450,59 @@ TEST_F(TestProjection, a_position_closed_before_the_reference_date_is_not_part_o
     auto keeps = Wheel(Euro(200000.00), fullyInvested, RollsOnHalfTheProfit());
 
     EXPECT_GT(closes.Over(rolled)[0].tax, keeps.Over(held)[0].tax);
+}
+
+TEST_F(TestProjection, shares_held_through_a_cycle_earn_the_dividend_net_of_withholding)
+{
+    auto holder = Portfolio::Funded(Euro(1000.00));
+    holder.SellPut(OptionContract("ACME", On(2024, 12, 20), Euro(9.00), OptionType::Put), 1);
+    holder.Assign(OptionContract("ACME", On(2024, 12, 20), Euro(9.00), OptionType::Put));
+
+    Projection wheel("ACME", holder, fullyInvested, NeverRolls(), Fees(), Rules());
+    const std::vector<ProjectionPeriod> periods{
+        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .strike = Euro(12.00), .premiumPerShare = 0.50, .spotAtExpiry = Euro(11.00), .observed = std::nullopt, .assessed = std::nullopt, .dividendPerShare = 0.30, .dividendWithholdingBasisPoints = 1500 }
+    };
+
+    const auto rows = wheel.Over(periods);
+
+    EXPECT_EQ(rows[0].dividend, Euro(25.50));
+    EXPECT_EQ(rows[0].cash, Euro(174.75));
+    EXPECT_EQ(rows[0].shares, 100);
+    EXPECT_EQ(wheel.Ledger().NetOf(CashflowKind::Dividend), Euro(25.50));
+    EXPECT_EQ(wheel.Ledger().Entries().back().on, On(2025, 7, 18));
+    EXPECT_EQ(Euro(100.00) + wheel.Ledger().Net(), wheel.Holdings().Cash());
+}
+
+TEST_F(TestProjection, a_cycle_spent_in_cash_earns_no_dividend_even_when_it_ends_in_shares)
+{
+    auto wheel = Wheel(Euro(10000.00), fullyInvested, NeverRolls());
+    const std::vector<ProjectionPeriod> periods{
+        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .strike = Euro(40.00), .premiumPerShare = 0.80, .spotAtExpiry = Euro(35.00), .observed = std::nullopt, .assessed = std::nullopt, .dividendPerShare = 1.00, .dividendWithholdingBasisPoints = 1500 }
+    };
+
+    const auto rows = wheel.Over(periods);
+
+    EXPECT_EQ(rows[0].dividend, Euro(0.00));
+    EXPECT_EQ(rows[0].shares, 200);
+    EXPECT_EQ(wheel.Ledger().NetOf(CashflowKind::Dividend), Euro(0.00));
+}
+
+TEST_F(TestProjection, a_charge_the_free_cash_cannot_meet_is_borrowed_and_repaid_from_the_next_premium)
+{
+    auto wheel = Wheel(Euro(200000.00), fullyInvested, NeverRolls());
+    const std::vector<ProjectionPeriod> periods{
+        { .opened = On(2025, 12, 1), .expiry = On(2025, 12, 31), .strike = Euro(40.00), .premiumPerShare = 0.50, .spotAtExpiry = Euro(35.00), .observed = std::nullopt, .assessed = std::nullopt },
+        { .opened = On(2025, 12, 31), .expiry = On(2026, 1, 30), .strike = Euro(38.00), .premiumPerShare = 0.01, .spotAtExpiry = Euro(36.00), .observed = std::nullopt, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(35.00) } },
+        { .opened = On(2026, 1, 30), .expiry = On(2026, 3, 1), .strike = Euro(40.00), .premiumPerShare = 0.60, .spotAtExpiry = Euro(36.00), .observed = std::nullopt, .assessed = std::nullopt }
+    };
+
+    const auto rows = wheel.Over(periods);
+
+    EXPECT_EQ(rows[0].shares, 5000);
+    EXPECT_GT(rows[1].tax, rows[1].cash + rows[1].tax);
+    EXPECT_LT(rows[1].cash, Euro(0.00));
+    EXPECT_TRUE(wheel.Holdings().Overdrawn() == false);
+    EXPECT_GT(rows[2].cash, Euro(0.00));
+    EXPECT_LT(wheel.Ledger().NetOf(CashflowKind::Interest), Euro(0.00));
+    EXPECT_EQ(Euro(200000.00) + wheel.Ledger().Net(), wheel.Holdings().Cash());
 }

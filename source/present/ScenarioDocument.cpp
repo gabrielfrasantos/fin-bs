@@ -102,7 +102,9 @@ namespace fin::present
                 .spotCents = static_cast<std::int32_t>(underlying.initialPrice.Cents()),
                 .driftBasisPoints = BasisPointsOf(underlying.drift.Continuous()),
                 .volatilityBasisPoints = BasisPointsOf(underlying.volatility.Annualized()),
+                .impliedVolatilityBasisPoints = BasisPointsOf(underlying.impliedVolatility.Annualized()),
                 .dividendYieldBasisPoints = BasisPointsOf(underlying.dividendYield.Continuous()),
+                .dividendWithholdingBasisPoints = underlying.dividendWithholdingBasisPoints,
                 .strikeIncrementCents = static_cast<std::int32_t>(underlying.strikeIncrement.Cents()) });
     }
 
@@ -237,7 +239,13 @@ namespace fin::present
         if (auto fault = Outside(RowField(index, "volatility_basis_points"), row.volatilityBasisPoints, 1, mostVolatilityBasisPoints))
             return fault;
 
+        if (auto fault = Outside(RowField(index, "implied_volatility_basis_points"), row.impliedVolatilityBasisPoints, 1, mostVolatilityBasisPoints))
+            return fault;
+
         if (auto fault = Outside(RowField(index, "dividend_yield_basis_points"), row.dividendYieldBasisPoints, 0, basisPointsPerUnit))
+            return fault;
+
+        if (auto fault = Outside(RowField(index, "dividend_withholding_basis_points"), row.dividendWithholdingBasisPoints, 0, basisPointsPerUnit))
             return fault;
 
         return Outside(RowField(index, "strike_increment_cents"), row.strikeIncrementCents, 1, mostCents);
@@ -255,7 +263,9 @@ namespace fin::present
                 .initialPrice = core::Money::FromCents(row.spotCents, fields.currency),
                 .drift = core::Rate::FromContinuous(FractionOf(row.driftBasisPoints)),
                 .volatility = core::Volatility::FromAnnualized(FractionOf(row.volatilityBasisPoints)),
+                .impliedVolatility = core::Volatility::FromAnnualized(FractionOf(row.impliedVolatilityBasisPoints)),
                 .dividendYield = core::Rate::FromContinuous(FractionOf(row.dividendYieldBasisPoints)),
+                .dividendWithholdingBasisPoints = row.dividendWithholdingBasisPoints,
                 .strikeIncrement = core::Money::FromCents(row.strikeIncrementCents, fields.currency) });
 
         return io::Scenario{ .name = fields.name,

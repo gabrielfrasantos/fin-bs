@@ -93,6 +93,11 @@ namespace fin::strategy
         return cash - Collateral();
     }
 
+    bool Portfolio::Overdrawn() const
+    {
+        return cash.Cents() < 0;
+    }
+
     std::int64_t Portfolio::Shares(const std::string& underlying) const
     {
         std::int64_t held = 0;
@@ -149,7 +154,7 @@ namespace fin::strategy
     {
         really_assert(amount.GetCurrency() == GetCurrency());
         really_assert(amount.Cents() >= 0);
-        really_assert(FreeCash() >= amount);
+        really_assert(Collateral().Cents() == 0 || FreeCash() >= amount);
 
         cash -= amount;
     }

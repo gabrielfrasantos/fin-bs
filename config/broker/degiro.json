@@ -8,5 +8,6 @@
     "handling_fee_per_trade_cents": 100,
     "connectivity_fee_cap_per_exchange_per_year_cents": 250,
     "connectivity_basis_points": 25,
-    "currency_handling_basis_points": 25
+    "currency_handling_basis_points": 25,
+    "debit_interest_basis_points": 690
 }

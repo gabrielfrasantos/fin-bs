@@ -310,3 +310,36 @@ TEST_F(TestPortfolio, an_underlying_cannot_be_given_two_prices)
 
     EXPECT_DEATH(Equity(portfolio, twice), "");
 }
+
+TEST_F(TestPortfolio, a_payment_with_nothing_reserved_may_take_the_balance_below_nothing)
+{
+    portfolio.Pay(Euro(20000.00));
+    portfolio.Pay(Euro(0.01));
+
+    EXPECT_EQ(portfolio.Cash(), Euro(-0.01));
+    EXPECT_EQ(portfolio.FreeCash(), Euro(-0.01));
+    EXPECT_TRUE(portfolio.Overdrawn());
+}
+
+TEST_F(TestPortfolio, a_payment_never_takes_the_balance_below_what_is_reserved)
+{
+    portfolio.SellPut(Put(40.00), 4);
+
+    EXPECT_DEATH(portfolio.Pay(Euro(4000.01)), "");
+}
+
+TEST_F(TestPortfolio, no_put_can_be_written_while_the_balance_is_below_nothing)
+{
+    portfolio.Pay(Euro(20000.01));
+
+    EXPECT_DEATH(portfolio.SellPut(Put(40.00), 1), "");
+}
+
+TEST_F(TestPortfolio, a_receipt_repays_an_overdrawn_balance)
+{
+    portfolio.Pay(Euro(20500.00));
+    portfolio.Receive(Euro(600.00));
+
+    EXPECT_EQ(portfolio.Cash(), Euro(100.00));
+    EXPECT_FALSE(portfolio.Overdrawn());
+}

@@ -1,6 +1,8 @@
 #pragma once
 
+#include "source/core/Date.hpp"
 #include "source/core/Money.hpp"
+#include "source/costs/BrokerFees.hpp"
 #include "source/strategy/CompoundingLedger.hpp"
 #include "source/strategy/Portfolio.hpp"
 #include "source/tax/Box3TaxModel.hpp"
@@ -31,4 +33,5 @@ namespace fin::strategy
     };
 
     bool Reconciles(const Account& account);
+    void AccrueDebitInterest(Account& account, const costs::BrokerFees& fees, const core::Money& openingCash, const core::Date& from, const core::Date& to);
 }

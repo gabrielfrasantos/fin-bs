@@ -1,5 +1,6 @@
 #include "source/pricing/Greeks.hpp"
 #include "source/sim/WheelScript.hpp"
+#include <cmath>
 #include <gtest/gtest.h>
 #include <vector>
 
@@ -44,7 +45,9 @@ namespace
             .strikeIncrement = Euro(1.00),
             .riskFreeRate = Rate::FromContinuous(0.02),
             .dividendYield = Rate::Zero(),
+            .dividendWithholdingBasisPoints = 1500,
             .volatility = Volatility::FromAnnualized(volatility),
+            .impliedVolatility = Volatility::FromAnnualized(volatility),
             .assessment = AnnualReference{ .month = 1, .day = 1 } };
     }
 
@@ -210,4 +213,42 @@ TEST_F(TestWheelScript, terms_are_refused_when_the_target_delta_leaves_no_strike
     terms.targetDelta = Delta::FromValue(1.0);
 
     EXPECT_FALSE(IsWellFormed(terms));
+}
+
+TEST_F(TestWheelScript, the_premium_is_priced_at_the_implied_volatility_and_not_at_the_one_the_path_moves_with)
+{
+    auto terms = Terms();
+    terms.impliedVolatility = Volatility::FromAnnualized(volatility + 0.10);
+    const WheelScript richer(terms);
+
+    const auto fair = script.PeriodFor(0, WheelState::Cash, path);
+    const auto rich = richer.PeriodFor(0, WheelState::Cash, FlatPath(richer, 40.00));
+
+    EXPECT_GT(rich.premiumPerShare, fair.premiumPerShare);
+    EXPECT_LE(rich.strike, fair.strike);
+}
+
+TEST_F(TestWheelScript, a_period_carries_the_dividend_the_yield_accrues_over_the_cycle_and_the_rate_withheld_from_it)
+{
+    auto terms = Terms();
+    terms.dividendYield = Rate::FromContinuous(0.04);
+    const WheelScript paying(terms);
+
+    const auto period = paying.PeriodFor(0, WheelState::HoldingShares, FlatPath(paying, 40.00));
+
+    EXPECT_DOUBLE_EQ(period.dividendPerShare, 40.00 * std::expm1(0.04 * timeToExpiry));
+    EXPECT_EQ(period.dividendWithholdingBasisPoints, 1500);
+    EXPECT_DOUBLE_EQ(script.PeriodFor(0, WheelState::HoldingShares, path).dividendPerShare, 0.0);
+}
+
+TEST_F(TestWheelScript, terms_are_refused_without_an_implied_volatility_or_with_a_withholding_beyond_the_whole)
+{
+    auto unpriced = Terms();
+    unpriced.impliedVolatility = Volatility::FromAnnualized(0.0);
+
+    auto overWithheld = Terms();
+    overWithheld.dividendWithholdingBasisPoints = 10001;
+
+    EXPECT_FALSE(IsWellFormed(unpriced));
+    EXPECT_FALSE(IsWellFormed(overWithheld));
 }

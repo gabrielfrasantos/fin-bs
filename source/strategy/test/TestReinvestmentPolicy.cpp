@@ -86,5 +86,10 @@ TEST_F(TestReinvestmentPolicy, holding_everything_back_commits_nothing)
 TEST_F(TestReinvestmentPolicy, a_contract_that_costs_nothing_to_secure_is_refused)
 {
     EXPECT_DEATH(fullyInvested.ContractsFor(Euro(10000.00), Euro(0.00)), "");
-    EXPECT_DEATH(fullyInvested.ContractsFor(Euro(-1.00), Euro(4000.00)), "");
+}
+
+TEST_F(TestReinvestmentPolicy, a_balance_below_nothing_opens_no_contract)
+{
+    EXPECT_EQ(fullyInvested.ContractsFor(Euro(-0.01), Euro(4000.00)), 0);
+    EXPECT_EQ(buffered.ContractsFor(Euro(-5000.00), Euro(4000.00)), 0);
 }

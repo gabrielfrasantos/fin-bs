@@ -1163,3 +1163,79 @@ record of what each wheel did. A reader who totals the tax column of the cycle t
 is correct and is stated in the report contract so that it reads as a fact about where to look rather
 than as a run that was untaxed. A wheel run on its own, outside a book, still reports its own charge
 in its own row.
+
+---
+
+## D50 - A charge that free cash cannot meet is borrowed, not refused
+
+*Date: 2026-10-19. Status: accepted. Amends the consequence of D28 that such a run stops, and the
+guarantee under D21 that cash is never negative.*
+
+**Context.** The wealth tax is struck at a cycle boundary on whatever the book holds. A book that
+was fully assigned holds shares and the remainder of its sizing, and the charge on the shares can
+exceed the cash. The model used to treat this as an invariant and stop the run. The audit showed the
+stop is reached by realistic settings: the shipped example dies at path 3,470 of a 10,000-path
+simulation, and the two-name test configuration with a 5% buffer at path 236 of 256. A person in
+that position does not stop; they owe the money and pay it from what comes in next.
+
+**Decision.** A payment that nothing reserved could cover is made anyway, and the balance goes below
+zero. That can happen only when no collateral is reserved, which at a boundary is always. While the
+balance is below zero no put can be written, because there is no free cash to secure one; shares are
+still written against, and every receipt - a premium, a settlement, a dividend - repays the debt. A
+balance owed at the opening of a cycle is charged debit interest at the broker's rate for the days
+of the cycle, posted at its end as its own kind of cashflow, which can only be a charge. For the
+wealth tax a balance owed is netted against the investment class.
+
+**Consequences.** No run stops. A simulation reports the share of its paths that borrowed, and a
+search can constrain it. The cost is three approximations, each stated: the debit rate is a
+configured figure that has not been confirmed against the tariff; interest is charged on the balance
+at a cycle's opening for the whole cycle, not day by day; and the debt is netted against investments
+at the investment return rather than imputed at the published debt return and threshold.
+
+**Reconsider if** a margined variant of the strategy is brought into scope, in which case borrowing
+becomes a modelled facility with its own limits rather than an overdraft the tax created.
+
+---
+
+## D51 - A dividend accrues from the yield over each cycle and is received net of withholding
+
+*Date: 2026-10-19. Status: accepted.*
+
+**Context.** Every option was priced with the underlying's dividend yield, which lowers call
+premiums and raises put premiums as a dividend-paying stock's forward requires, but no dividend was
+ever paid to a holder of the shares. For a name yielding 4%, the income forgone while holding shares
+was of the same order as the premiums.
+
+**Decision.** The script supplies, with every period, the dividend per share the yield accrues over
+that period - the opening price times one less than the growth of the yield over the period's length
+- and the rate withheld from it for that underlying. At settlement, the shares held at the period's
+opening receive that amount, less the withholding, as a dividend cashflow dated the period's end.
+The path's drift is a price drift, so no price drop is modelled on an ex-date.
+
+**Consequences.** The shares leg earns what it earns, and the withholding differs per name, which is
+what a book of Dutch and foreign names needs. The cost is that a dividend is accrued rather than
+paid on its ex-dates, so a share held for part of a period earns nothing and one held throughout
+earns the whole accrual; and that the credit of domestic withholding against the annual charge is
+not yet modelled, so a Dutch name is counted 15% low until it is.
+
+---
+
+## D52 - The volatility an option is priced at is stated separately from the one the path moves with
+
+*Date: 2026-10-19. Status: accepted.*
+
+**Context.** The premium of every option was the model's value at the same volatility that generated
+the path. Under that assumption the option is sold for exactly its expected cost, so the simulated
+strategy earned the drift exposure of its positions and nothing from option selling as such; the gap
+between implied and realised volatility, which is what a premium seller is paid for, was zero by
+construction and could not be stated.
+
+**Decision.** Every underlying states two volatilities: the one its path moves with and the implied
+one its options are priced at. The premium, the value at a roll observation, the delta the roll
+rules see and the strike the target delta selects all use the implied figure; the path generator
+uses the realised one.
+
+**Consequences.** A scenario can express a volatility risk premium, or its absence, and a backtest
+can calibrate the two separately. A scenario with the two equal reproduces the previous behaviour to
+the cent. The cost is one more figure per underlying that has to come from somewhere, and that a
+bid-ask spread is still not modelled.

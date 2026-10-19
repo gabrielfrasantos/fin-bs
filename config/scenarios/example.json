@@ -26,7 +26,9 @@
             "spot_cents": 9500,
             "drift_basis_points": 600,
             "volatility_basis_points": 2200,
+            "implied_volatility_basis_points": 2200,
             "dividend_yield_basis_points": 180,
+            "dividend_withholding_basis_points": 1500,
             "strike_increment_cents": 100
         },
         {
@@ -34,7 +36,9 @@
             "spot_cents": 68000,
             "drift_basis_points": 900,
             "volatility_basis_points": 3400,
+            "implied_volatility_basis_points": 3400,
             "dividend_yield_basis_points": 90,
+            "dividend_withholding_basis_points": 1500,
             "strike_increment_cents": 500
         },
         {
@@ -42,7 +46,9 @@
             "spot_cents": 3200,
             "drift_basis_points": 400,
             "volatility_basis_points": 2600,
+            "implied_volatility_basis_points": 2600,
             "dividend_yield_basis_points": 400,
+            "dividend_withholding_basis_points": 0,
             "strike_increment_cents": 50
         }
     ]

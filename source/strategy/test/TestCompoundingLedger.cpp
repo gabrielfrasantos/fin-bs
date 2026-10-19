@@ -79,6 +79,7 @@ TEST_F(TestCompoundingLedger, a_charge_can_never_be_a_receipt)
     EXPECT_DEATH(ledger.Post(Day(2), CashflowKind::Fee, Euro(1.50)), "");
     EXPECT_DEATH(ledger.Post(Day(2), CashflowKind::Tax, Euro(90.00)), "");
     EXPECT_DEATH(ledger.Post(Day(2), CashflowKind::Fx, Euro(0.25)), "");
+    EXPECT_DEATH(ledger.Post(Day(2), CashflowKind::Interest, Euro(0.25)), "");
 }
 
 TEST_F(TestCompoundingLedger, a_dividend_can_never_be_a_charge)

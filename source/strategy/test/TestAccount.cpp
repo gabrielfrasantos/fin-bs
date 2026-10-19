@@ -1,3 +1,4 @@
+#include "source/costs/BrokerFees.hpp"
 #include "source/strategy/Account.hpp"
 #include <gtest/gtest.h>
 
@@ -6,7 +7,10 @@ namespace
     using fin::core::Currency;
     using fin::core::Date;
     using fin::core::Money;
+    using fin::costs::BrokerFees;
+    using fin::costs::FeeSchedule;
     using fin::strategy::Account;
+    using fin::strategy::AccrueDebitInterest;
     using fin::strategy::CashflowKind;
     using fin::strategy::Portfolio;
     using fin::strategy::Reconciles;
@@ -21,6 +25,17 @@ namespace
     Date On(std::int32_t year, std::uint32_t month, std::uint32_t day)
     {
         return Date::FromYearMonthDay(year, month, day);
+    }
+
+    BrokerFees Fees()
+    {
+        return BrokerFees(FeeSchedule{ .optionFeePerContract = Euro(0.75),
+            .shareCommissionPerTrade = Euro(2.00),
+            .handlingFeePerTrade = Euro(1.00),
+            .connectivityFeeCapPerExchangePerYear = Euro(2.50),
+            .connectivityBasisPoints = 25,
+            .currencyHandlingBasisPoints = 25,
+            .debitInterestBasisPoints = 690 });
     }
 
     Box3TaxModel Rules()
@@ -86,4 +101,25 @@ TEST_F(TestAccount, a_copy_of_an_account_is_a_separate_account)
     EXPECT_EQ(account.Holdings().Cash(), Euro(10000.00));
     EXPECT_TRUE(account.Ledger().Entries().empty());
     EXPECT_TRUE(Reconciles(copy));
+}
+
+TEST_F(TestAccount, an_overdrawn_account_accrues_debit_interest_dated_the_day_the_period_ends)
+{
+    account.Holdings().Pay(Euro(15000.00));
+    account.Ledger().Post(On(2026, 1, 1), CashflowKind::Tax, Euro(-15000.00));
+
+    AccrueDebitInterest(account, Fees(), account.Holdings().Cash(), On(2026, 1, 1), On(2026, 7, 2));
+
+    EXPECT_EQ(account.Ledger().NetOf(CashflowKind::Interest), Euro(-172.03));
+    EXPECT_EQ(account.Ledger().Entries().back().on, On(2026, 7, 2));
+    EXPECT_EQ(account.Holdings().Cash(), Euro(-5172.03));
+    EXPECT_TRUE(Reconciles(account));
+}
+
+TEST_F(TestAccount, an_account_in_credit_accrues_no_interest)
+{
+    AccrueDebitInterest(account, Fees(), account.Holdings().Cash(), On(2026, 1, 1), On(2026, 7, 2));
+
+    EXPECT_TRUE(account.Ledger().Entries().empty());
+    EXPECT_TRUE(Reconciles(account));
 }

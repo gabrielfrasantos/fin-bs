@@ -58,6 +58,10 @@ Working in the logarithm rather than the price is what keeps the price positive 
 sequence of draws, however extreme, can produce a negative or zero price, so no downstream
 calculation has to guard against one.
 
+The $\sigma$ here is the volatility the path moves with. The options the script writes on that path
+are priced at a separately stated implied volatility ([decision D52](../design/decisions.md)); the
+two are equal only if the scenario says so.
+
 The distinction between the two drifts is the classic trap. The expected price grows at $\mu$,
 
 $$\mathbb{E}[S_t] = S_0 e^{\mu t},$$

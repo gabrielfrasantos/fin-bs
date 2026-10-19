@@ -99,3 +99,13 @@ TEST(TestOutcomeDistribution, the_assignment_frequency_counts_assignments_agains
 
     EXPECT_DOUBLE_EQ(distribution.AssignmentFrequency(), 6.0 / 12.0);
 }
+
+TEST(TestOutcomeDistribution, the_debt_frequency_is_the_share_of_paths_that_ever_borrowed)
+{
+    const auto distribution = OutcomeDistribution::Of({ PathOutcome{ .terminalEquity = Euro(10.00), .growthRate = 0.1, .positions = 4, .assignments = 0, .cyclesInDebt = 2, .maximumDrawdown = 0.0 },
+        PathOutcome{ .terminalEquity = Euro(20.00), .growthRate = 0.2, .positions = 4, .assignments = 0, .cyclesInDebt = 0, .maximumDrawdown = 0.0 },
+        PathOutcome{ .terminalEquity = Euro(30.00), .growthRate = 0.3, .positions = 4, .assignments = 0, .cyclesInDebt = 1, .maximumDrawdown = 0.0 },
+        PathOutcome{ .terminalEquity = Euro(40.00), .growthRate = 0.4, .positions = 4, .assignments = 0, .cyclesInDebt = 0, .maximumDrawdown = 0.0 } });
+
+    EXPECT_DOUBLE_EQ(distribution.DebtFrequency(), 0.5);
+}

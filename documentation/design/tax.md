@@ -88,8 +88,10 @@ applied. This is the single place in the tax layer where an amount passes throug
 ### What cannot be expressed
 
 - **A tax on income.** There is no input for one.
-- **A debt.** The strategy this project describes never borrows, and the published treatment of
-  borrowings is not modelled ([decision D29](decisions.md)). Wealth is non-negative by construction.
+- **A debt as its own class.** The strategy this project describes never borrows on purpose, and the
+  published treatment of borrowings is not modelled ([decision D29](decisions.md)). A balance the
+  wealth tax itself drove below zero ([decision D50](decisions.md)) is netted against the investment
+  class by the caller before the layer is asked; wealth is non-negative by construction.
 - **Two tax years at once.** A model applies one document. Projecting across a change of rules means
   applying two models, each to its own reference date.
 - **A charge in a currency the rules were not written in.** Refused at the point of use.
@@ -122,9 +124,10 @@ held will ever recover it.
   the sum instead would differ by at most one minor unit and could not be attributed.
 - **A charge just above the allowance is nil.** Wealth one minor unit above the allowance produces a
   taxable return that rounds to nothing. This is correct, and it is the boundary the tests pin.
-- **The charge is paid from uncommitted cash.** A projection whose cash is entirely committed as
-  collateral on the reference date cannot settle the charge, and stops rather than overdrawing. The
-  cash buffer in the reinvestment policy is the lever that prevents it.
+- **The charge is paid from uncommitted cash, or borrowed.** A projection whose free cash cannot
+  meet the charge pays it anyway and carries the shortfall as a balance below zero, repaid from the
+  next receipts at the broker's debit rate ([decision D50](decisions.md)). The cash buffer in the
+  reinvestment policy is the lever that keeps that rare.
 - **A reference date must lie inside the cycle that carries it.** It is refused otherwise, because a
   date outside the cycle would be valued against the wrong holdings.
 - **Wealth is split by where it sits, not by what it is for.** Cash held as collateral against a

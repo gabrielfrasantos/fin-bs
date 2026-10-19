@@ -23,7 +23,9 @@ namespace
             .spotCents = spotCents,
             .driftBasisPoints = 600,
             .volatilityBasisPoints = 2200,
+            .impliedVolatilityBasisPoints = 2400,
             .dividendYieldBasisPoints = 180,
+            .dividendWithholdingBasisPoints = 1500,
             .strikeIncrementCents = 100 };
     }
 

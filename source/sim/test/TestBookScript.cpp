@@ -47,7 +47,9 @@ namespace
             .initialPrice = Euro(initialPrice),
             .drift = Rate::FromContinuous(0.07),
             .volatility = Volatility::FromAnnualized(0.25),
+            .impliedVolatility = Volatility::FromAnnualized(0.25),
             .dividendYield = Rate::Zero(),
+            .dividendWithholdingBasisPoints = 1500,
             .strikeIncrement = Euro(1.00) };
     }
 

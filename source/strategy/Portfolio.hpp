@@ -37,6 +37,7 @@ namespace fin::strategy
         const core::Money& Cash() const;
         core::Money Collateral() const;
         core::Money FreeCash() const;
+        bool Overdrawn() const;
 
         std::int64_t Shares(const std::string& underlying) const;
         std::int64_t CoveredShares(const std::string& underlying) const;

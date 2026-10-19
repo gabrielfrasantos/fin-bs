@@ -19,6 +19,7 @@ namespace fin::sim
         {
             really_assert(outcome.positions > 0);
             really_assert(outcome.assignments >= 0 && outcome.assignments <= outcome.positions);
+            really_assert(outcome.cyclesInDebt >= 0);
             really_assert(outcome.terminalEquity.GetCurrency() == outcomes.front().terminalEquity.GetCurrency());
         }
 
@@ -105,5 +106,15 @@ namespace fin::sim
         }
 
         return static_cast<double>(assignments) / static_cast<double>(positions);
+    }
+
+    double OutcomeDistribution::DebtFrequency() const
+    {
+        const auto borrowed = std::count_if(ordered.begin(), ordered.end(), [](const PathOutcome& outcome)
+            {
+                return outcome.cyclesInDebt > 0;
+            });
+
+        return static_cast<double>(borrowed) / static_cast<double>(ordered.size());
     }
 }

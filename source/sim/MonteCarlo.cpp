@@ -48,6 +48,7 @@ namespace fin::sim
         auto peak = opening;
         auto equity = opening;
         std::int32_t assignments = 0;
+        std::int32_t cyclesInDebt = 0;
         auto drawdown = 0.0;
         std::vector<core::Money> equityByCycle{ opening };
         equityByCycle.reserve(static_cast<std::size_t>(script.Cycles()) + 1u);
@@ -66,6 +67,9 @@ namespace fin::sim
                     ++assignments;
             }
 
+            if (run.Holdings().Overdrawn())
+                ++cyclesInDebt;
+
             equityByCycle.push_back(equity);
         }
 
@@ -73,6 +77,7 @@ namespace fin::sim
             .growthRate = CompoundAnnualGrowth(opening, equity, script.Horizon()),
             .positions = script.Cycles(),
             .assignments = assignments,
+            .cyclesInDebt = cyclesInDebt,
             .maximumDrawdown = drawdown,
             .equityByCycle = std::move(equityByCycle) };
     }

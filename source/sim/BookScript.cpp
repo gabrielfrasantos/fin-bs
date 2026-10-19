@@ -18,7 +18,9 @@ namespace fin::sim
                 .strikeIncrement = underlying.strikeIncrement,
                 .riskFreeRate = terms.riskFreeRate,
                 .dividendYield = underlying.dividendYield,
+                .dividendWithholdingBasisPoints = underlying.dividendWithholdingBasisPoints,
                 .volatility = underlying.volatility,
+                .impliedVolatility = underlying.impliedVolatility,
                 .assessment = std::nullopt };
         }
 

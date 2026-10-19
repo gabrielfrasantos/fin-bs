@@ -19,7 +19,9 @@ namespace fin::present
         std::int32_t spotCents;
         std::int32_t driftBasisPoints;
         std::int32_t volatilityBasisPoints;
+        std::int32_t impliedVolatilityBasisPoints;
         std::int32_t dividendYieldBasisPoints;
+        std::int32_t dividendWithholdingBasisPoints;
         std::int32_t strikeIncrementCents;
 
         bool operator==(const UnderlyingRow& other) const = default;

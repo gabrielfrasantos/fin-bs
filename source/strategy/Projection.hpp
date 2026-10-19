@@ -41,6 +41,8 @@ namespace fin::strategy
         core::Money spotAtExpiry;
         std::optional<RollObservation> observed;
         std::optional<TaxObservation> assessed;
+        double dividendPerShare;
+        std::int32_t dividendWithholdingBasisPoints;
     };
 
     struct ProjectionRow
@@ -51,6 +53,7 @@ namespace fin::strategy
         core::Money premium;
         core::Money fees;
         core::Money assignment;
+        core::Money dividend;
         core::Money tax;
         core::Money cash;
         std::int64_t shares;
@@ -82,6 +85,7 @@ namespace fin::strategy
             core::Money premium;
             core::Money fees;
             core::Money assignment;
+            core::Money dividend;
             core::Money tax;
         };
 
@@ -90,11 +94,14 @@ namespace fin::strategy
             core::OptionContract contract;
             Movements movements;
             std::optional<TaxObservation> assessment;
+            std::int64_t sharesHeld;
+            core::Money openingCash;
         };
 
         Account& Books();
         const Account& Books() const;
-        ProjectionRow Resolve(const ProjectionPeriod& period, std::span<const SpotPrice> marks);
+        void CreditDividend(const ProjectionPeriod& period);
+        void Resolve(const ProjectionPeriod& period);
         void Assess(const ProjectionPeriod& period, const core::Date& upTo);
         ProjectionRow RowFor(const ProjectionPeriod& period, std::span<const SpotPrice> marks) const;
         bool Rolls(const ProjectionPeriod& period) const;

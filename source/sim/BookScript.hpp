@@ -22,7 +22,9 @@ namespace fin::sim
         core::Money initialPrice;
         core::Rate drift;
         core::Volatility volatility;
+        core::Volatility impliedVolatility;
         core::Rate dividendYield;
+        std::int32_t dividendWithholdingBasisPoints;
         core::Money strikeIncrement;
 
         bool operator==(const UnderlyingTerms& other) const = default;
