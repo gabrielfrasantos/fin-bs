@@ -26,7 +26,7 @@ No code was changed by the audit itself; fixes are a separate decision per findi
 | 5 | `source/optimize` | [05-optimize.md](05-optimize.md) | done 2026-10-19 | 0 | 1 | 1 | 4 | 2 |
 | 6 | `source/pricing` | [06-pricing.md](06-pricing.md) | done 2026-10-19 | 0 | 0 | 1 | 3 | 2 |
 | 7 | `source/strategy` | [07-strategy.md](07-strategy.md) | done 2026-10-19 | 0 | 2 | 2 | 7 | 4 |
-| 8 | `source/tax` | 08-tax.md | pending | | | | | |
+| 8 | `source/tax` | [08-tax.md](08-tax.md) | done 2026-10-19 | 0 | 0 | 2 | 4 | 4 |
 | 9 | `source/sim` | 09-sim.md | pending | | | | | |
 
 `present`, `gui` and `app` are display code and are out of scope.
