@@ -384,20 +384,20 @@ int main(int argc, char** argv)
 
 ```text
 $ ./demo_opt 1
-drawdown<=0.40, rate 4.0, 23 iterations      delta 0.3026 buffer  4200 bp roll 0.7828 | growth 1.3563% drawdown 0.3262 assign 0.1562 
-drawdown<=0.40, rate 4.0, 24 iterations      delta 0.3162 buffer  4200 bp roll 0.7769 | growth 1.3932% drawdown 0.3250 assign 0.1562 
-drawdown<=0.40, rate 4.0, 25 iterations      delta 0.3231 buffer  4059 bp roll 0.7870 | growth 1.4629% drawdown 0.3291 assign 0.1641 
-drawdown<=0.40, rate 4.0, 26 iterations      delta 0.3304 buffer  3881 bp roll 0.7889 | growth 1.4329% drawdown 0.3408 assign 0.1771 
-drawdown<=0.40, rate 4.0, 48 iterations      delta 0.3331 buffer  3299 bp roll 0.7745 | growth 1.6028% drawdown 0.3766 assign 0.1797 
-drawdown<=0.40, rate 1.0, 24 iterations      delta 0.3062 buffer  2742 bp roll 0.6275 | growth 1.4991% drawdown 0.3885 assign 0.1016 
-drawdown<=0.40, rate 2.0, 24 iterations      delta 0.3077 buffer  2833 bp roll 0.6533 | growth 1.5379% drawdown 0.3867 assign 0.1094 
-drawdown<=0.40, rate 4.0, 24 iterations      delta 0.3162 buffer  4200 bp roll 0.7769 | growth 1.3932% drawdown 0.3250 assign 0.1562 
+drawdown<=0.40, rate 4.0, 23 iterations      delta 0.3026 buffer  4200 bp roll 0.7828 | growth 1.3563% drawdown 0.3262 assign 0.1562
+drawdown<=0.40, rate 4.0, 24 iterations      delta 0.3162 buffer  4200 bp roll 0.7769 | growth 1.3932% drawdown 0.3250 assign 0.1562
+drawdown<=0.40, rate 4.0, 25 iterations      delta 0.3231 buffer  4059 bp roll 0.7870 | growth 1.4629% drawdown 0.3291 assign 0.1641
+drawdown<=0.40, rate 4.0, 26 iterations      delta 0.3304 buffer  3881 bp roll 0.7889 | growth 1.4329% drawdown 0.3408 assign 0.1771
+drawdown<=0.40, rate 4.0, 48 iterations      delta 0.3331 buffer  3299 bp roll 0.7745 | growth 1.6028% drawdown 0.3766 assign 0.1797
+drawdown<=0.40, rate 1.0, 24 iterations      delta 0.3062 buffer  2742 bp roll 0.6275 | growth 1.4991% drawdown 0.3885 assign 0.1016
+drawdown<=0.40, rate 2.0, 24 iterations      delta 0.3077 buffer  2833 bp roll 0.6533 | growth 1.5379% drawdown 0.3867 assign 0.1094
+drawdown<=0.40, rate 4.0, 24 iterations      delta 0.3162 buffer  4200 bp roll 0.7769 | growth 1.3932% drawdown 0.3250 assign 0.1562
 drawdown<=0.40, rate 8.0, 24 iterations      delta 0.3651 buffer  2584 bp roll 0.7825 | growth 1.7827% drawdown 0.4140 assign 0.1901 [drawdown binds]
-start itself (no search), drawdown<=0.40     delta 0.3000 buffer  2200 bp roll 0.6000 | growth 1.5992% drawdown 0.4166 assign 0.0938 
+start itself (no search), drawdown<=0.40     delta 0.3000 buffer  2200 bp roll 0.6000 | growth 1.5992% drawdown 0.4166 assign 0.0938
 $ ./demo_opt 2
 start outside the range: PointOf = (0.00, 0.00, 1.00); Recommend ...
-from a start outside the range, shrinkage 3  delta 0.1000 buffer   200 bp roll 0.8000 | growth 0.0134% drawdown 0.4339 assign 0.0312 
-from the clamped start (0.10, 200, 0.80), shrinkage 3 delta 0.1000 buffer   200 bp roll 0.8000 | growth 0.0134% drawdown 0.4339 assign 0.0312 
+from a start outside the range, shrinkage 3  delta 0.1000 buffer   200 bp roll 0.8000 | growth 0.0134% drawdown 0.4339 assign 0.0312
+from the clamped start (0.10, 200, 0.80), shrinkage 3 delta 0.1000 buffer   200 bp roll 0.8000 | growth 0.0134% drawdown 0.4339 assign 0.0312
 $ ./demo_opt 3            # Debug library
 demo_opt: source/optimize/StrikeSizingOptimizer.cpp:61: ... Assertion `IsWellFormed(terms)' failed.
 $ g++ -std=c++20 -O2 -DNDEBUG ... demo_opt.cpp source/optimize/*.cpp <other archives>

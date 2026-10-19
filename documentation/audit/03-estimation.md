@@ -518,10 +518,10 @@ EmaVolatilityEstimator::WithSmoothingFactor(NaN) ACCEPTED, SmoothingFactor()=nan
 
 $ g++ -std=c++20 -O2 -DNDEBUG -I... -S -o - source/estimation/EmaVolatilityEstimator.cpp \
       | awk '/EmaVolatilityEstimatorC2Edd:/,/cfi_endproc/' | grep -E 'comisd|jp|ja'
-	comisd	%xmm0, %xmm2
-	comisd	.LC7(%rip), %xmm0
-	ja	.L75
-	comisd	%xmm1, %xmm2
+    comisd    %xmm0, %xmm2
+    comisd    .LC7(%rip), %xmm0
+    ja    .L75
+    comisd    %xmm1, %xmm2
 
 $ for kb in 8192 2048 1024 768 512; do (ulimit -s $kb; \
       build/source/estimation/test/fin.estimation_test --gtest_filter='TestLineFit.every_fit_recovers*:TestDriftEstimator.a_known*' | tail -1); done
