@@ -17,10 +17,12 @@ function(fin_bs_add_gui_test target source)
     target_sources(${target} PRIVATE ${source})
 
     if (FIN_BS_BUILD_TESTS)
-        set_tests_properties(${target} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+        # No display, and no graphics driver: the scene graph renders in software.
+        set_tests_properties(${target} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     endif()
 endfunction()
 
-fin_bs_add_gui_test(fin.gui_chart_test TestFanChartWidget.cpp)
-fin_bs_add_gui_test(fin.gui_panel_test TestScenarioPanel.cpp)
-fin_bs_add_gui_test(fin.gui_window_test TestMainWindow.cpp)
+fin_bs_add_gui_test(fin.gui_chart_test TestFanChartItem.cpp)
+fin_bs_add_gui_test(fin.gui_scenario_test TestScenarioModel.cpp)
+fin_bs_add_gui_test(fin.gui_run_test TestRunModel.cpp)
+fin_bs_add_gui_test(fin.gui_window_test TestWindow.cpp)
