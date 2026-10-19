@@ -64,6 +64,9 @@ different strategy.
   shares at a cost of $K$ each. A share transaction charge applies.
 - **Call assignment.** The writer delivers $mn$ shares and receives $K m n$. A share transaction
   charge applies.
+- **Holding shares.** Shares held at the opening of a cycle earn the dividend the yield accrues over
+  it, received at the cycle's end net of the withholding stated for the underlying
+  ([decision D51](../design/decisions.md)).
 
 ### What a cycle is worth
 

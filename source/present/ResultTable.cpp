@@ -74,6 +74,8 @@ namespace fin::present
                     return "tax";
                 case strategy::CashflowKind::Fx:
                     return "conversion";
+                case strategy::CashflowKind::Interest:
+                    return "interest";
             }
 
             really_assert(false);
@@ -83,7 +85,7 @@ namespace fin::present
 
     ResultTable CycleTable(std::span<const strategy::BookRow> rows)
     {
-        ResultTable table{ { "underlying", "date", "state", "contracts", "premium", "fees", "assignment", "tax", "cash", "shares", "equity" }, {} };
+        ResultTable table{ { "underlying", "date", "state", "contracts", "premium", "fees", "assignment", "dividend", "tax", "cash", "shares", "equity" }, {} };
 
         for (const auto& entry : rows)
             table.rows.push_back({ entry.underlying,
@@ -93,6 +95,7 @@ namespace fin::present
                 TextOf(entry.row.premium),
                 TextOf(entry.row.fees),
                 TextOf(entry.row.assignment),
+                TextOf(entry.row.dividend),
                 TextOf(entry.row.tax),
                 TextOf(entry.row.cash),
                 std::to_string(entry.row.shares),
@@ -123,6 +126,7 @@ namespace fin::present
         table.rows.push_back({ "mean growth a year", PercentageOf(distribution.MeanGrowthRate()) });
         table.rows.push_back({ "worst drawdown", PercentageOf(distribution.WorstDrawdown()) });
         table.rows.push_back({ "assignments per option written", PercentageOf(distribution.AssignmentFrequency()) });
+        table.rows.push_back({ "paths that borrowed", PercentageOf(distribution.DebtFrequency()) });
 
         return table;
     }

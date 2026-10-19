@@ -98,8 +98,10 @@ an automated test.
 - **Settling in list order.** Settlement is done in the order the book lists its underlyings, not in
   the order they were served, so that a run is reproducible. Nothing depends on it: each wheel
   settles only its own position, and the record sorts itself by date.
-- **A charge the book cannot settle.** Assessing at a cycle boundary makes this as unlikely as it
-  can be made, but a fully committed book can still fail to raise the cash. The buffer is the lever.
+- **A charge the book cannot settle from free cash.** Assessing at a cycle boundary makes this as
+  unlikely as it can be made, but a fully committed book can still fall short; it then borrows,
+  writes no put until receipts have repaid the debt, and is charged debit interest on it
+  ([D50](decisions.md)). The buffer is the lever that keeps it rare.
 - **The equity on every row is the book's, not the underlying's.** Cash is shared, so there is no
   meaningful per-underlying equity to report. The contracts, premium, charges, assignment and share
   count on a row belong to that underlying; the balance and the equity belong to the book.

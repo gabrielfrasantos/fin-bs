@@ -25,7 +25,8 @@ namespace
             .handlingFeePerTrade = Euro(1.00),
             .connectivityFeeCapPerExchangePerYear = Euro(2.50),
             .connectivityBasisPoints = 25,
-            .currencyHandlingBasisPoints = 25
+            .currencyHandlingBasisPoints = 25,
+            .debitInterestBasisPoints = 690
         };
 
         BrokerFees fees{ schedule };
@@ -105,4 +106,24 @@ TEST_F(TestBrokerFees, connectivity_needs_a_portfolio_in_the_schedules_currency)
 {
     EXPECT_DEATH(fees.ConnectivityFor(Money::FromCents(100000, Currency::Usd), 1), "");
     EXPECT_DEATH(fees.ConnectivityFor(Euro(-1.00), 1), "");
+}
+
+TEST_F(TestBrokerFees, a_balance_below_nothing_is_charged_debit_interest_for_the_days_it_was_owed)
+{
+    EXPECT_EQ(fees.DebitInterest(Euro(-10000.00), 182), Euro(344.05));
+    EXPECT_EQ(fees.DebitInterest(Euro(-10000.00), 365), Euro(690.00));
+    EXPECT_EQ(fees.DebitInterest(Euro(-1.00), 1), Euro(0.00));
+}
+
+TEST_F(TestBrokerFees, a_balance_that_owes_nothing_is_charged_no_interest)
+{
+    EXPECT_EQ(fees.DebitInterest(Euro(0.00), 182), Euro(0.00));
+    EXPECT_EQ(fees.DebitInterest(Euro(10000.00), 182), Euro(0.00));
+    EXPECT_EQ(fees.DebitInterest(Euro(-10000.00), 0), Euro(0.00));
+}
+
+TEST_F(TestBrokerFees, debit_interest_in_another_currency_or_over_negative_days_is_refused)
+{
+    EXPECT_DEATH(fees.DebitInterest(Money::FromCents(-1000000, Currency::Usd), 182), "");
+    EXPECT_DEATH(fees.DebitInterest(Euro(-10000.00), -1), "");
 }

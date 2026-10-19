@@ -54,6 +54,7 @@ namespace fin::strategy
             case CashflowKind::Fee:
             case CashflowKind::Tax:
             case CashflowKind::Fx:
+            case CashflowKind::Interest:
                 return amount.Cents() <= 0;
             case CashflowKind::Dividend:
                 return amount.Cents() >= 0;

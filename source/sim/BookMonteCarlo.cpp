@@ -85,6 +85,7 @@ namespace fin::sim
         auto peak = opening;
         auto equity = opening;
         std::int32_t assignments = 0;
+        std::int32_t cyclesInDebt = 0;
         auto drawdown = 0.0;
         std::vector<core::Money> equityByCycle{ opening };
         equityByCycle.reserve(static_cast<std::size_t>(script.Cycles()) + 1u);
@@ -94,6 +95,8 @@ namespace fin::sim
             if (const auto assessed = script.AssessmentBefore(cycle, paths))
                 run.Assess(*assessed);
 
+            const auto borrowedToPay = run.Holdings().Overdrawn();
+
             for (const auto& row : run.Over(script.CycleFor(cycle, run, paths)))
             {
                 equity = row.row.equity;
@@ -101,6 +104,9 @@ namespace fin::sim
                 if (row.row.assignment.Cents() != 0)
                     ++assignments;
             }
+
+            if (borrowedToPay || run.Holdings().Overdrawn())
+                ++cyclesInDebt;
 
             peak = std::max(peak, equity);
             drawdown = std::max(drawdown, (peak - equity).ToDouble() / peak.ToDouble());
@@ -111,6 +117,7 @@ namespace fin::sim
             .growthRate = CompoundAnnualGrowth(opening, equity, script.Horizon()),
             .positions = script.Cycles() * static_cast<std::int32_t>(underlyings.size()),
             .assignments = assignments,
+            .cyclesInDebt = cyclesInDebt,
             .maximumDrawdown = drawdown,
             .equityByCycle = std::move(equityByCycle) };
     }

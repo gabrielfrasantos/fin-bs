@@ -31,8 +31,8 @@ namespace
 
     std::vector<BookRow> Rows()
     {
-        return { BookRow{ "ACME", ProjectionRow{ .on = On(2026, 7, 6), .state = WheelState::Cash, .contracts = 45, .premium = Euro(3600.00), .fees = Euro(-33.75), .assignment = Money::Zero(Currency::Eur), .tax = Money::Zero(Currency::Eur), .cash = Euro(203963.25), .shares = 0, .equity = Euro(201963.25) } },
-            BookRow{ "BETA", ProjectionRow{ .on = On(2026, 7, 6), .state = WheelState::HoldingShares, .contracts = 4, .premium = Euro(400.00), .fees = Euro(-6.00), .assignment = Euro(-20000.00), .tax = Money::Zero(Currency::Eur), .cash = Euro(183960.25), .shares = 400, .equity = Euro(201960.25) } } };
+        return { BookRow{ "ACME", ProjectionRow{ .on = On(2026, 7, 6), .state = WheelState::Cash, .contracts = 45, .premium = Euro(3600.00), .fees = Euro(-33.75), .assignment = Money::Zero(Currency::Eur), .dividend = Money::Zero(Currency::Eur), .tax = Money::Zero(Currency::Eur), .cash = Euro(203963.25), .shares = 0, .equity = Euro(201963.25) } },
+            BookRow{ "BETA", ProjectionRow{ .on = On(2026, 7, 6), .state = WheelState::HoldingShares, .contracts = 4, .premium = Euro(400.00), .fees = Euro(-6.00), .assignment = Euro(-20000.00), .dividend = Euro(12.75), .tax = Money::Zero(Currency::Eur), .cash = Euro(183960.25), .shares = 400, .equity = Euro(201960.25) } } };
     }
 
     OutcomeDistribution Outcomes()
@@ -43,7 +43,7 @@ namespace
 
     TEST(TestResultTable, names_a_column_for_every_field_of_a_cycle)
     {
-        EXPECT_THAT(CycleTable({}).headings, ElementsAre("underlying", "date", "state", "contracts", "premium", "fees", "assignment", "tax", "cash", "shares", "equity"));
+        EXPECT_THAT(CycleTable({}).headings, ElementsAre("underlying", "date", "state", "contracts", "premium", "fees", "assignment", "dividend", "tax", "cash", "shares", "equity"));
         EXPECT_TRUE(CycleTable({}).rows.empty());
     }
 
@@ -51,8 +51,8 @@ namespace
     {
         const auto rows = Rows();
 
-        EXPECT_THAT(CycleTable(rows).rows, ElementsAre(ElementsAre("ACME", "2026-07-06", "cash", "45", "3600.00", "-33.75", "0.00", "0.00", "203963.25", "0", "201963.25"),
-                                               ElementsAre("BETA", "2026-07-06", "holding shares", "4", "400.00", "-6.00", "-20000.00", "0.00", "183960.25", "400", "201960.25")));
+        EXPECT_THAT(CycleTable(rows).rows, ElementsAre(ElementsAre("ACME", "2026-07-06", "cash", "45", "3600.00", "-33.75", "0.00", "0.00", "0.00", "203963.25", "0", "201963.25"),
+                                               ElementsAre("BETA", "2026-07-06", "holding shares", "4", "400.00", "-6.00", "-20000.00", "12.75", "0.00", "183960.25", "400", "201960.25")));
     }
 
     TEST(TestResultTable, writes_a_row_of_the_ledger_for_every_cashflow)
@@ -75,5 +75,6 @@ namespace
         EXPECT_THAT(table.rows, Contains(ElementsAre("worst drawdown", "25.00%")));
         EXPECT_THAT(table.rows, Contains(ElementsAre("assignments per option written", "50.00%")));
         EXPECT_THAT(table.rows, Contains(ElementsAre("mean growth a year", "0.00%")));
+        EXPECT_THAT(table.rows, Contains(ElementsAre("paths that borrowed", "0.00%")));
     }
 }

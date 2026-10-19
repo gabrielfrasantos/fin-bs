@@ -16,13 +16,14 @@ namespace
     using fin::io::BrokerConfig;
     using ::testing::HasSubstr;
 
-    const std::array<std::pair<std::string_view, std::string_view>, 7> publishedFields{ { { "currency", R"("EUR")" },
+    const std::array<std::pair<std::string_view, std::string_view>, 8> publishedFields{ { { "currency", R"("EUR")" },
         { "option_fee_per_contract_cents", "75" },
         { "share_commission_per_trade_cents", "200" },
         { "handling_fee_per_trade_cents", "100" },
         { "connectivity_fee_cap_per_exchange_per_year_cents", "250" },
         { "connectivity_basis_points", "25" },
-        { "currency_handling_basis_points", "25" } } };
+        { "currency_handling_basis_points", "25" },
+        { "debit_interest_basis_points", "690" } } };
 
     std::vector<std::string> Lines(const std::string& path)
     {
@@ -84,6 +85,7 @@ TEST(TestBrokerConfig, the_published_schedule_parses)
     EXPECT_EQ(config.Schedule()->connectivityFeeCapPerExchangePerYear, Money::FromCents(250, Currency::Eur));
     EXPECT_EQ(config.Schedule()->connectivityBasisPoints, 25);
     EXPECT_EQ(config.Schedule()->currencyHandlingBasisPoints, 25);
+    EXPECT_EQ(config.Schedule()->debitInterestBasisPoints, 690);
 }
 
 TEST(TestBrokerConfig, the_published_schedule_is_well_formed)

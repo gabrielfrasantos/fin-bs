@@ -71,7 +71,9 @@ namespace
             .initialPrice = Euro(initialPrice),
             .drift = Rate::FromContinuous(0.07),
             .volatility = Volatility::FromAnnualized(volatility),
+            .impliedVolatility = Volatility::FromAnnualized(volatility),
             .dividendYield = Rate::Zero(),
+            .dividendWithholdingBasisPoints = 1500,
             .strikeIncrement = Euro(1.00) };
     }
 
@@ -87,9 +89,9 @@ namespace
             .underlyings = std::move(underlyings) };
     }
 
-    Book Of(const BookScript& script, const Money& funded)
+    Book Of(const BookScript& script, const Money& funded, std::int32_t bufferBasisPoints = 500)
     {
-        return Book(script.Underlyings(), Portfolio::Funded(funded), ReinvestmentPolicy::WithCashBuffer(500), RollRules(RollTriggers{ .daysToExpiry = 7, .profitCaptureBasisPoints = 8000, .deltaLimit = Delta::FromValue(0.60) }), Fees(), Rules());
+        return Book(script.Underlyings(), Portfolio::Funded(funded), ReinvestmentPolicy::WithCashBuffer(bufferBasisPoints), RollRules(RollTriggers{ .daysToExpiry = 7, .profitCaptureBasisPoints = 8000, .deltaLimit = Delta::FromValue(0.60) }), Fees(), Rules());
     }
 
     std::vector<GbmPathGenerator> Markets(const BookTerms& terms)
@@ -231,4 +233,26 @@ TEST_F(TestBookMonteCarlo, watching_a_run_does_not_change_it)
     Rng unwatched(seed);
 
     EXPECT_EQ(simulation.Over(16, watched, observer).Equity(50), simulation.Over(16, unwatched).Equity(50));
+}
+
+TEST_F(TestBookMonteCarlo, a_book_that_cannot_pay_a_charge_borrows_and_the_run_reports_how_often_rather_than_stopping)
+{
+    BookMonteCarlo committed(Of(script, Euro(capital), 0), script, Markets(terms));
+    Rng rng(seed);
+
+    const auto distribution = committed.Over(256, rng);
+
+    EXPECT_EQ(distribution.Paths(), 256u);
+    EXPECT_GE(distribution.DebtFrequency(), 0.0);
+    EXPECT_LE(distribution.DebtFrequency(), 1.0);
+    EXPECT_GT(distribution.At(50).positions, 0);
+}
+
+TEST_F(TestBookMonteCarlo, a_buffered_book_still_completes_the_run_that_used_to_stop_at_its_two_hundred_and_thirty_sixth_path)
+{
+    Rng rng(seed);
+
+    const auto distribution = simulation.Over(256, rng);
+
+    EXPECT_EQ(distribution.Paths(), 256u);
 }

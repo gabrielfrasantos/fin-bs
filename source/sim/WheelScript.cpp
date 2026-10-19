@@ -3,6 +3,7 @@
 #include "source/pricing/BlackScholes.hpp"
 #include "source/pricing/Greeks.hpp"
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 namespace fin::sim
@@ -12,6 +13,7 @@ namespace fin::sim
         constexpr auto convention = core::DayCountConvention::Act365Fixed;
         constexpr std::int32_t nonLeapYear = 2001;
         constexpr std::int64_t deepStrikeMultiple = 8;
+        constexpr std::int32_t basisPointsPerUnit = 10000;
 
         pricing::OptionParameters Written(const core::Money& spot, const core::Money& strike, const WheelTerms& terms, core::OptionType type, double timeToExpiry)
         {
@@ -81,18 +83,20 @@ namespace fin::sim
         strategy::ProjectionPeriod period{ .opened = opened,
             .expiry = expiry,
             .strike = strike,
-            .premiumPerShare = pricing::BlackScholes(Written(spot, strike, terms, type, timeToExpiry), terms.volatility).Price(),
+            .premiumPerShare = pricing::BlackScholes(Written(spot, strike, terms, type, timeToExpiry), terms.impliedVolatility).Price(),
             .spotAtExpiry = PriceOn(path, expiry),
             .observed = std::nullopt,
-            .assessed = std::nullopt };
+            .assessed = std::nullopt,
+            .dividendPerShare = spot.ToDouble() * std::expm1(terms.dividendYield.Continuous() * timeToExpiry),
+            .dividendWithholdingBasisPoints = terms.dividendWithholdingBasisPoints };
 
         if (const auto on = type == core::OptionType::Put ? Observation(cycle) : std::nullopt)
         {
             const auto remaining = Written(PriceOn(path, *on), strike, terms, type, core::YearFraction(*on, expiry, convention));
 
             period.observed = strategy::RollObservation{ .on = *on,
-                .valuePerShare = pricing::BlackScholes(remaining, terms.volatility).Price(),
-                .delta = pricing::Greeks(remaining, terms.volatility).Delta() };
+                .valuePerShare = pricing::BlackScholes(remaining, terms.impliedVolatility).Price(),
+                .delta = pricing::Greeks(remaining, terms.impliedVolatility).Delta() };
         }
 
         if (const auto on = Assessment(cycle))
@@ -147,7 +151,7 @@ namespace fin::sim
         const auto withinTarget = [&](std::int64_t strikes)
         {
             const auto strike = core::Money::FromCents(strikes * increment, spot.GetCurrency());
-            return pricing::Greeks(Written(spot, strike, terms, type, timeToExpiry), terms.volatility).Delta().Magnitude() <= terms.targetDelta.Magnitude();
+            return pricing::Greeks(Written(spot, strike, terms, type, timeToExpiry), terms.impliedVolatility).Delta().Magnitude() <= terms.targetDelta.Magnitude();
         };
 
         const auto furthest = atSpot * deepStrikeMultiple;
@@ -184,6 +188,9 @@ namespace fin::sim
                terms.strikeIncrement.Cents() > 0 &&
                terms.dividendYield.Continuous() >= 0.0 &&
                terms.volatility.Annualized() > 0.0 &&
+               terms.impliedVolatility.Annualized() > 0.0 &&
+               terms.dividendWithholdingBasisPoints >= 0 &&
+               terms.dividendWithholdingBasisPoints <= basisPointsPerUnit &&
                (!terms.assessment.has_value() || core::Date::IsValid(nonLeapYear, terms.assessment->month, terms.assessment->day));
     }
 }

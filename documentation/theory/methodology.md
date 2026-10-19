@@ -132,9 +132,10 @@ follows from reserving the whole strike.
 
 Every option written or bought back is charged per contract; every share transaction is charged a
 commission and a handling fee; holding a position on an exchange is charged a proportional annual
-fee up to a ceiling. Every charge is a whole number of minor units computed from whole minor units
-and whole basis points, so a trade list costs the sum of its trades exactly and no rounding drift
-accumulates over a long projection. See [broker costs](broker-costs.md).
+fee up to a ceiling; a balance owed is charged debit interest at the broker's rate. Every charge is
+a whole number of minor units computed from whole minor units and whole basis points, so a trade
+list costs the sum of its trades exactly and no rounding drift accumulates over a long projection.
+See [broker costs](broker-costs.md).
 
 ### 8. What it is taxed
 
@@ -221,6 +222,9 @@ number is worth.
 | No borrowing, no margin | a position always reserves its full obligation, which is conservative |
 | Simultaneous expiries | all wheels turn on the same day, so nothing is staggered |
 | Tax rules of one year | the Dutch wealth tax is being reformed, and a stale year is wrong in a way nothing here can detect |
+| Debit interest on the opening balance | a balance borrowed to pay a charge is charged for the whole cycle at the rate configured, which is unconfirmed |
+| Dividends accrued, not paid on ex-dates | a share held for part of a cycle earns nothing; the credit of domestic withholding against the charge is not modelled |
+| One implied volatility per underlying, no bid-ask | the premium is the model's value at that figure; a fill at the bid would be lower |
 
 ## References
 

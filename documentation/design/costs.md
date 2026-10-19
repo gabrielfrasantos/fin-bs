@@ -52,6 +52,7 @@ cashflow, and the cost layer never sees a price.
 | Every proportional rate between zero and the whole amount | a cost larger than the amount it is charged on is not a cost |
 | A trade of at least one contract or one share | a trade of nothing is a defect in the caller, not a free trade |
 | A non-negative portfolio value for a connectivity charge | the charge is proportional to what is held |
+| A non-negative number of days for debit interest | interest is charged on what is owed for the days it was owed |
 
 These are checked in two different places, because they are two different failures.
 
@@ -82,6 +83,10 @@ See [decision D17](decisions.md).
 - **A conversion cost is charged on the size of a cashflow, not its direction.** Money coming in
   arrives short, money going out costs more; both are a cost. See
   [decision D19](decisions.md) and [currency conversion](../theory/currency-conversion.md).
+
+- **Debit interest is a whole number of minor units.** It is the balance owed, times the rate, times
+  the days, over ten thousand times three hundred and sixty-five, rounded once; a balance that owes
+  nothing is charged nothing. See [decision D50](decisions.md).
 
 ### What the layer deliberately does not do
 

@@ -45,7 +45,8 @@ namespace
             .handlingFeePerTrade = Euro(1.00),
             .connectivityFeeCapPerExchangePerYear = Euro(2.50),
             .connectivityBasisPoints = 25,
-            .currencyHandlingBasisPoints = 25 });
+            .currencyHandlingBasisPoints = 25,
+            .debitInterestBasisPoints = 690 });
     }
 
     Box3TaxModel Rules()
@@ -112,11 +113,11 @@ namespace
         const auto run = TwoNamesOverTwoCycles();
 
         EXPECT_EQ(CycleReport(run.rows),
-            "underlying,date,state,contracts,premium,fees,assignment,tax,cash,shares,equity\n"
-            "ACME,2025-07-18,cash,45,3600.00,33.75,0.00,0.00,203963.25,0,201963.25\n"
-            "BETA,2025-07-18,holding shares,4,400.00,6.00,-20000.00,0.00,183960.25,400,201960.25\n"
-            "ACME,2026-01-16,cash,37,3330.00,27.75,0.00,0.00,186779.15,0,205179.15\n"
-            "BETA,2026-01-16,cash,4,440.00,6.00,18400.00,0.00,205176.15,0,205176.15\n");
+            "underlying,date,state,contracts,premium,fees,assignment,dividend,tax,cash,shares,equity\n"
+            "ACME,2025-07-18,cash,45,3600.00,33.75,0.00,0.00,0.00,203963.25,0,201963.25\n"
+            "BETA,2025-07-18,holding shares,4,400.00,6.00,-20000.00,0.00,0.00,183960.25,400,201960.25\n"
+            "ACME,2026-01-16,cash,37,3330.00,27.75,0.00,0.00,0.00,186779.15,0,205179.15\n"
+            "BETA,2026-01-16,cash,4,440.00,6.00,18400.00,0.00,0.00,205176.15,0,205176.15\n");
     }
 
     TEST(TestReportWriter, writes_a_row_of_the_ledger_for_every_cashflow)
@@ -142,7 +143,7 @@ namespace
 
     TEST(TestReportWriter, writes_an_empty_table_of_no_rows)
     {
-        EXPECT_EQ(CycleReport({}), "underlying,date,state,contracts,premium,fees,assignment,tax,cash,shares,equity\n");
+        EXPECT_EQ(CycleReport({}), "underlying,date,state,contracts,premium,fees,assignment,dividend,tax,cash,shares,equity\n");
         EXPECT_EQ(LedgerReport(fin::strategy::CompoundingLedger(Currency::Eur)), "date,kind,amount\n");
     }
 }

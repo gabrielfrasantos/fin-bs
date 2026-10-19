@@ -58,9 +58,11 @@ reaches this layer a violation is a programming error.
 
 ### What the layer guarantees
 
-- **Cash is never negative and collateral never exceeds it.** Reserving, paying, being assigned and
-  closing all preserve both, which is what makes "free cash" meaningful at every moment rather than
-  only between cycles.
+- **Collateral never exceeds cash, and cash goes below zero only by a payment nothing reserved
+  could cover.** Reserving, paying, being assigned and closing all preserve the first, which is what
+  makes "free cash" meaningful at every moment rather than only between cycles. The second happens
+  when a charge exceeds free cash with nothing reserved; while the balance is below zero no put can
+  be written, every receipt repays it, and debit interest accrues on it ([D50](decisions.md)).
 - **Assignment moves value; it does not create or destroy any.** The cash paid on a put assignment is
   exactly the collateral released, and the shares arrive priced at the strike, so equity marked at any
   price is the same immediately before and immediately after. The same holds for a call assignment.
@@ -95,7 +97,7 @@ reaches this layer a violation is a programming error.
 - A fee that is a receipt, a tax that is a refund, or a dividend that is a charge.
 - Selling a fraction of a contract.
 - Writing a put while holding shares, or a call while holding only cash.
-- A cashflow dated before the one already recorded.
+- A put written while the balance is below zero.
 - Equity as an independent number that can disagree with the holdings.
 
 ### Where the numbers come from
@@ -103,18 +105,21 @@ reaches this layer a violation is a programming error.
 The layer prices nothing. Premiums, the value of a position at an observation, and the price at
 expiry are supplied by the script that drives the projection; assignment is decided by the moneyness
 rule of the valuation layer; charges are computed by the cost layer from a schedule read from a file;
-the annual wealth tax is computed by the tax layer from rules read from a file. This is deliberate: a
-projection whose premiums came from a model would be a projection of the model, and its agreement
-with itself would prove nothing.
+the annual wealth tax is computed by the tax layer from rules read from a file. A dividend is supplied
+by the script as an amount per share accrued over the period together with the rate withheld from
+it; the shares held at the period's opening receive it, net, at the period's end
+([D51](decisions.md)). This is deliberate: a projection whose premiums came from a model would be a
+projection of the model, and its agreement with itself would prove nothing.
 
 ### The annual tax charge
 
 A cycle is not a calendar period, so the one date a year on which wealth is measured falls inside a
 cycle rather than on a row boundary. The script says which period contains that date and what the
 underlying was worth then; the projection values the holdings at that instant, including any open
-position, charges the tax, settles it from free cash and records it in the ledger on that date rather
-than on the row's. The charge falls on what is held and never on what was earned, which is the whole
-point of modelling this jurisdiction rather than assuming another. See [D26](decisions.md) and
+position, charges the tax, settles it - borrowing when free cash falls short - and records it in the
+ledger on that date rather than on the row's. The charge falls on what is held and never on what was
+earned, which is the whole point of modelling this jurisdiction rather than assuming another. See
+[D26](decisions.md) and
 [D28](decisions.md), and [tax contracts](tax.md).
 
 ## Worked example
@@ -146,9 +151,9 @@ premium is received and 1.50 of contract charges is paid, leaving 10,337.00 in c
 - **The order of releasing and paying.** A position is released before its settlement is paid, so the
   payment is made from cash the position itself had reserved. Reversing the order would break the
   free-cash precondition on an assignment that is in fact fully funded.
-- **Charges are paid from free cash, not from collateral.** A projection can therefore fail to afford
-  a charge while apparently holding a large balance. That is the model behaving correctly; the cash
-  buffer exists to prevent it.
+- **Charges are paid from free cash, not from collateral.** A charge that free cash cannot meet is
+  paid anyway when nothing is reserved, and the balance goes below zero until receipts repay it, at
+  the broker's debit rate. The cash buffer is what keeps that rare. See [D50](decisions.md).
 - **A premium can be negative.** Buying a position back is a premium paid. Only charges, taxes and
   currency handling have a fixed direction.
 

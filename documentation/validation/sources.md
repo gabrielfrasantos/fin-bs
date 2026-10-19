@@ -16,12 +16,13 @@ history of what a rate used to be is what makes an old projection reproducible.
 | Box 3 tax rate | 36% | Box 3, tax year 2025 (also 36% for 2024 and 2026) | <https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/belastingdienst/prive/inkomstenbelasting/heffingskortingen_boxen_tarieven/boxen_en_tarieven/box_3> | 2026-08-11 | project |
 | Dividend withholding tax (dividendbelasting) | 15% | Dutch dividends; used as the rate at which foreign withholding is creditable | **not yet confirmed against the issuing body's own page** - the rate is long-standing and uncontroversial, but no Belastingdienst page has been read for it | - | - |
 | Imputed return on debts | 2.70% per year | Box 3, tax year 2025 | <https://www.belastingdienst.nl/wps/wcm/connect/nl/box-3/content/berekening-box-3-inkomen-2025> | 2026-08-11 | project |
+| Debit interest | 6.90% per year | DEGIRO Basic account, a balance owed in EUR | **not yet confirmed** - a placeholder of the right order of magnitude; to be read from the full tariff document at <https://www.degiro.nl/data/pdf/Tarievenoverzicht.pdf> | - | - |
 
 ⚠️ The option contract charge is the single most influential cost in this project - a wheel strategy
-pays it on every leg of every cycle - and it is one of two figures above that have **not** been
-confirmed against a published source, the other being the dividend withholding rate. Both values in
-the default configuration are placeholders of the right order of magnitude. Confirm them before
-trusting any projection.
+pays it on every leg of every cycle - and it is one of three figures above that have **not** been
+confirmed against a published source, the others being the dividend withholding rate and the debit
+interest rate. All three values in the default configuration are placeholders of the right order of
+magnitude. Confirm them before trusting any projection.
 
 ⚠️ Box 3 is being reformed. The imputed returns are re-set every year and the figure for bank deposits
 is provisional when the year begins and fixed only afterwards - the 2025 figure was 1.44% while

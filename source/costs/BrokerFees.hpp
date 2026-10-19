@@ -16,6 +16,7 @@ namespace fin::costs
         core::Money For(const Trade& trade) const;
         core::Money For(std::span<const Trade> trades) const;
         core::Money ConnectivityFor(const core::Money& portfolioValue, std::size_t exchanges) const;
+        core::Money DebitInterest(const core::Money& balance, std::int32_t days) const;
 
     private:
         FeeSchedule schedule;

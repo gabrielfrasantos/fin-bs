@@ -46,7 +46,8 @@ namespace
             .handlingFeePerTrade = Euro(1.00),
             .connectivityFeeCapPerExchangePerYear = Euro(2.50),
             .connectivityBasisPoints = 25,
-            .currencyHandlingBasisPoints = 25 });
+            .currencyHandlingBasisPoints = 25,
+            .debitInterestBasisPoints = 690 });
     }
 
     Box3TaxModel Rules()
@@ -363,4 +364,54 @@ TEST(TestBook, a_book_cannot_be_listed_empty_or_with_the_same_underlying_twice)
 {
     EXPECT_DEATH(Of({}, Euro(20000.00)), "");
     EXPECT_DEATH(Of({ "ACME", "ACME" }, Euro(20000.00)), "");
+}
+
+TEST(TestBook, a_charge_the_book_cannot_pay_is_borrowed_and_the_next_cycle_charges_interest_and_repays_it)
+{
+    auto book = Of({ "ACME", "BETA" }, Euro(200000.00));
+
+    const std::vector<BookPeriod> first{
+        { "ACME", Period(On(2025, 12, 1), On(2025, 12, 31), 40.00, 0.50, 35.00) },
+        { "BETA", Period(On(2025, 12, 1), On(2025, 12, 31), 50.00, 0.50, 55.00) }
+    };
+
+    const auto assigned = book.Over(first);
+
+    ASSERT_EQ(assigned[0].row.shares, 5000);
+    ASSERT_EQ(assigned[1].row.contracts, 0);
+    ASSERT_EQ(book.Holdings().Cash(), Euro(2459.50));
+
+    const std::vector<SpotPrice> prices{ { "ACME", Euro(35.00) }, { "BETA", Euro(55.00) } };
+    const auto charged = book.Assess({ On(2026, 1, 1), prices });
+
+    EXPECT_EQ(charged, Euro(2508.46));
+    EXPECT_EQ(book.Holdings().Cash(), Euro(-48.96));
+    EXPECT_TRUE(book.Holdings().Overdrawn());
+    EXPECT_TRUE(Reconciles(book.Holds()));
+
+    const std::vector<BookPeriod> second{
+        { "ACME", Period(On(2025, 12, 31), On(2026, 1, 30), 38.00, 0.60, 36.00) },
+        { "BETA", Period(On(2025, 12, 31), On(2026, 1, 30), 50.00, 0.50, 55.00) }
+    };
+
+    const auto repaid = book.Over(second);
+
+    EXPECT_EQ(repaid[0].row.contracts, 50);
+    EXPECT_EQ(repaid[1].row.contracts, 0);
+    EXPECT_EQ(book.Ledger().NetOf(CashflowKind::Interest), Euro(-0.28));
+    EXPECT_EQ(book.Holdings().Cash(), Euro(2913.26));
+    EXPECT_FALSE(book.Holdings().Overdrawn());
+    EXPECT_EQ(repaid[1].row.cash, Euro(2913.26));
+    EXPECT_TRUE(Reconciles(book.Holds()));
+}
+
+TEST(TestBook, a_cycle_whose_periods_do_not_share_their_dates_is_refused)
+{
+    auto book = Of({ "ACME", "BETA" }, Euro(20000.00));
+    const std::vector<BookPeriod> staggered{
+        { "ACME", Period(On(2025, 1, 3), On(2025, 7, 18), 40.00, 0.80, 45.00) },
+        { "BETA", Period(On(2025, 1, 3), On(2025, 7, 25), 50.00, 1.50, 55.00) }
+    };
+
+    EXPECT_DEATH(book.Over(staggered), "");
 }

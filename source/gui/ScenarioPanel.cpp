@@ -21,7 +21,7 @@ namespace fin::gui
 {
     namespace
     {
-        constexpr int columns = 6;
+        constexpr int columns = 8;
         constexpr int mostBasisPoints = 1000000;
 
         QSpinBox* Counter(const char* named, int least, int most)
@@ -170,7 +170,7 @@ namespace fin::gui
     {
         underlyings = new QTableWidget(0, columns);
         underlyings->setObjectName("underlyings");
-        underlyings->setHorizontalHeaderLabels(QStringList{ tr("Ticker"), tr("Spot (cents)"), tr("Drift (bp)"), tr("Volatility (bp)"), tr("Dividend yield (bp)"), tr("Strike increment (cents)") });
+        underlyings->setHorizontalHeaderLabels(QStringList{ tr("Ticker"), tr("Spot (cents)"), tr("Drift (bp)"), tr("Volatility (bp)"), tr("Implied volatility (bp)"), tr("Dividend yield (bp)"), tr("Withholding (bp)"), tr("Strike increment (cents)") });
         underlyings->horizontalHeader()->setStretchLastSection(true);
         underlyings->setSelectionBehavior(QAbstractItemView::SelectRows);
         underlyings->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -232,7 +232,9 @@ namespace fin::gui
                 QString::number(held.spotCents),
                 QString::number(held.driftBasisPoints),
                 QString::number(held.volatilityBasisPoints),
+                QString::number(held.impliedVolatilityBasisPoints),
                 QString::number(held.dividendYieldBasisPoints),
+                QString::number(held.dividendWithholdingBasisPoints),
                 QString::number(held.strikeIncrementCents) };
 
             for (int column = 0; column != columns; ++column)
@@ -291,8 +293,10 @@ namespace fin::gui
                 .spotCents = cell(1).toInt(),
                 .driftBasisPoints = cell(2).toInt(),
                 .volatilityBasisPoints = cell(3).toInt(),
-                .dividendYieldBasisPoints = cell(4).toInt(),
-                .strikeIncrementCents = cell(5).toInt() });
+                .impliedVolatilityBasisPoints = cell(4).toInt(),
+                .dividendYieldBasisPoints = cell(5).toInt(),
+                .dividendWithholdingBasisPoints = cell(6).toInt(),
+                .strikeIncrementCents = cell(7).toInt() });
         }
 
         while (document.Underlyings().size() > rows.size())
@@ -309,7 +313,7 @@ namespace fin::gui
 
     void ScenarioPanel::Add()
     {
-        document.Append(present::UnderlyingRow{ .ticker = "NEW", .spotCents = 10000, .driftBasisPoints = 0, .volatilityBasisPoints = 2500, .dividendYieldBasisPoints = 0, .strikeIncrementCents = 100 });
+        document.Append(present::UnderlyingRow{ .ticker = "NEW", .spotCents = 10000, .driftBasisPoints = 0, .volatilityBasisPoints = 2500, .impliedVolatilityBasisPoints = 2500, .dividendYieldBasisPoints = 0, .dividendWithholdingBasisPoints = 1500, .strikeIncrementCents = 100 });
 
         ShowRows();
         emit Edited();

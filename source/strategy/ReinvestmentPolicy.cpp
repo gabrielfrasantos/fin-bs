@@ -39,6 +39,9 @@ namespace fin::strategy
         really_assert(collateralPerContract.GetCurrency() == freeCash.GetCurrency());
         really_assert(collateralPerContract.Cents() > 0);
 
+        if (freeCash.Cents() <= 0)
+            return 0;
+
         return Investable(freeCash).Cents() / collateralPerContract.Cents();
     }
 }

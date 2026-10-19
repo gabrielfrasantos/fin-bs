@@ -38,8 +38,9 @@ Two things make that harder than it sounds.
 
 A **lever** is a setting that applies to the whole book: the target delta, the length of a cycle,
 the delta at which a position is rolled away, and the fraction of cash held back. A **market** is
-what is stated per underlying: a spot, a volatility, a drift, a dividend yield and the spacing of the
-listed strikes.
+what is stated per underlying: a spot, the volatility its path moves with, the implied volatility
+its options are priced at, a drift, a dividend yield, the rate withheld from a dividend, and the
+spacing of the listed strikes.
 
 ## Derivation / Rules
 
@@ -101,7 +102,7 @@ never from a decimal number.
 
 - The **cycle table** carries one row per underlying per cycle. It reports what state the wheel was
   in when the cycle closed, how many contracts it wrote, and the premium, costs, assignment
-  settlement, cash and holdings that followed.
+  settlement, dividend, cash and holdings that followed.
 - The **ledger** carries one row per cashflow, in date order, each naming its kind and its sign.
 
 The wealth tax appears in the ledger and **not** in a cycle row. A book is assessed as a whole, at a
@@ -116,12 +117,12 @@ half-year cycles. Both underlyings offer the same premium per unit of collateral
 0.80 against a strike of 40.00, and 1.00 against a strike of 50.00, both two hundredths - so the tie
 is broken by the order they are listed in.
 
-| Underlying | Cycle closed | State | Contracts | Premium | Costs | Assignment | Cash | Shares | Value |
-|---|---|---|---:|---:|---:|---:|---:|---:|---:|
-| first | 2025-07-18 | cash | 45 | 3,600.00 | 33.75 | 0.00 | 203,963.25 | 0 | 201,963.25 |
-| second | 2025-07-18 | holding shares | 4 | 400.00 | 6.00 | -20,000.00 | 183,960.25 | 400 | 201,960.25 |
-| first | 2026-01-16 | cash | 37 | 3,330.00 | 27.75 | 0.00 | 186,779.15 | 0 | 205,179.15 |
-| second | 2026-01-16 | cash | 4 | 440.00 | 6.00 | 18,400.00 | 205,176.15 | 0 | 205,176.15 |
+| Underlying | Cycle closed | State | Contracts | Premium | Costs | Assignment | Dividend | Cash | Shares | Value |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| first | 2025-07-18 | cash | 45 | 3,600.00 | 33.75 | 0.00 | 0.00 | 203,963.25 | 0 | 201,963.25 |
+| second | 2025-07-18 | holding shares | 4 | 400.00 | 6.00 | -20,000.00 | 0.00 | 183,960.25 | 400 | 201,960.25 |
+| first | 2026-01-16 | cash | 37 | 3,330.00 | 27.75 | 0.00 | 0.00 | 186,779.15 | 0 | 205,179.15 |
+| second | 2026-01-16 | cash | 4 | 440.00 | 6.00 | 18,400.00 | 0.00 | 205,176.15 | 0 | 205,176.15 |
 
 The first row is checkable by hand: nine tenths of 200,000.00 is 180,000.00, which at 4,000.00 of
 collateral per contract writes forty-five contracts; forty-five hundred shares at 0.80 is 3,600.00 of

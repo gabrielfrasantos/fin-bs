@@ -16,7 +16,8 @@ namespace fin::present::test
             .handlingFeePerTrade = Euro(1.00),
             .connectivityFeeCapPerExchangePerYear = Euro(2.50),
             .connectivityBasisPoints = 25,
-            .currencyHandlingBasisPoints = 25 };
+            .currencyHandlingBasisPoints = 25,
+            .debitInterestBasisPoints = 690 };
     }
 
     inline tax::Box3Parameters Taxes()
@@ -35,7 +36,9 @@ namespace fin::present::test
             .initialPrice = Euro(spot),
             .drift = core::Rate::FromContinuous(0.06),
             .volatility = core::Volatility::FromAnnualized(volatility),
+            .impliedVolatility = core::Volatility::FromAnnualized(volatility),
             .dividendYield = core::Rate::FromContinuous(0.02),
+            .dividendWithholdingBasisPoints = 1500,
             .strikeIncrement = Euro(1.00) };
     }
 

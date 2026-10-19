@@ -25,7 +25,9 @@ namespace fin::optimize::test
             .initialPrice = Euro(initialPrice),
             .drift = core::Rate::FromContinuous(0.07),
             .volatility = core::Volatility::FromAnnualized(0.25),
+            .impliedVolatility = core::Volatility::FromAnnualized(0.25),
             .dividendYield = core::Rate::Zero(),
+            .dividendWithholdingBasisPoints = 1500,
             .strikeIncrement = Euro(1.00) };
     }
 
@@ -38,7 +40,8 @@ namespace fin::optimize::test
                 .handlingFeePerTrade = Euro(1.00),
                 .connectivityFeeCapPerExchangePerYear = Euro(2.50),
                 .connectivityBasisPoints = 25,
-                .currencyHandlingBasisPoints = 25 }),
+                .currencyHandlingBasisPoints = 25,
+                .debitInterestBasisPoints = 690 }),
             .taxes = tax::Box3TaxModel(tax::Box3Parameters{ .taxYear = 2025,
                 .taxFreeAllowance = Euro(57684.00),
                 .depositReturnBasisPoints = 137,

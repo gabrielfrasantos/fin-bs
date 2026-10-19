@@ -22,7 +22,7 @@ namespace
 
     fin::present::UnderlyingRow Row(std::string ticker)
     {
-        return fin::present::UnderlyingRow{ .ticker = std::move(ticker), .spotCents = 9500, .driftBasisPoints = 600, .volatilityBasisPoints = 2200, .dividendYieldBasisPoints = 180, .strikeIncrementCents = 100 };
+        return fin::present::UnderlyingRow{ .ticker = std::move(ticker), .spotCents = 9500, .driftBasisPoints = 600, .volatilityBasisPoints = 2200, .impliedVolatilityBasisPoints = 2400, .dividendYieldBasisPoints = 180, .dividendWithholdingBasisPoints = 1500, .strikeIncrementCents = 100 };
     }
 }
 

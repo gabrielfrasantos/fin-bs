@@ -33,7 +33,9 @@ namespace fin::sim
         core::Money strikeIncrement;
         core::Rate riskFreeRate;
         core::Rate dividendYield;
+        std::int32_t dividendWithholdingBasisPoints;
         core::Volatility volatility;
+        core::Volatility impliedVolatility;
         std::optional<AnnualReference> assessment;
     };
 

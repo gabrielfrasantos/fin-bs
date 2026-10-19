@@ -56,7 +56,8 @@ namespace fin::io
                 .handlingFeePerTrade = AmountAt(navigator, "handling_fee_per_trade_cents", currency),
                 .connectivityFeeCapPerExchangePerYear = AmountAt(navigator, "connectivity_fee_cap_per_exchange_per_year_cents", currency),
                 .connectivityBasisPoints = BasisPointsAt(navigator, "connectivity_basis_points"),
-                .currencyHandlingBasisPoints = BasisPointsAt(navigator, "currency_handling_basis_points")
+                .currencyHandlingBasisPoints = BasisPointsAt(navigator, "currency_handling_basis_points"),
+                .debitInterestBasisPoints = BasisPointsAt(navigator, "debit_interest_basis_points")
             };
         }
         catch (const std::exception& error)

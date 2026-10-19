@@ -10,8 +10,9 @@ namespace fin::strategy
     {
         tax::Box3Assets AssetsOf(const Portfolio& portfolio, std::span<const SpotPrice> prices)
         {
-            const auto equity = Equity(portfolio, prices);
-            const auto deposits = std::min(portfolio.Cash(), equity);
+            const auto nothing = core::Money::Zero(portfolio.GetCurrency());
+            const auto equity = std::max(Equity(portfolio, prices), nothing);
+            const auto deposits = std::min(std::max(portfolio.Cash(), nothing), equity);
 
             return { deposits, equity - deposits };
         }
@@ -37,6 +38,10 @@ namespace fin::strategy
     {
         really_assert(cycle.size() == underlyings.size());
 
+        const auto opened = cycle.front().period.opened;
+        const auto expiry = cycle.front().period.expiry;
+        const auto openingCash = account.Holdings().Cash();
+
         std::vector<CollateralClaim> claims;
         std::vector<SpotPrice> marks;
         claims.reserve(cycle.size());
@@ -46,6 +51,7 @@ namespace fin::strategy
         {
             really_assert(Carries(entry.underlying));
             really_assert(!entry.period.assessed.has_value());
+            really_assert(entry.period.opened == opened && entry.period.expiry == expiry);
             really_assert(std::count_if(cycle.begin(), cycle.end(), [&entry](const BookPeriod& other)
                               {
                                   return other.underlying == entry.underlying;
@@ -66,6 +72,8 @@ namespace fin::strategy
 
         for (const auto claim : ServiceOrder(claims))
             wheels[claim].Write(cycle[claim].period);
+
+        AccrueDebitInterest(account, brokerFees, openingCash, opened, expiry);
 
         std::vector<BookRow> rows;
         rows.reserve(cycle.size());

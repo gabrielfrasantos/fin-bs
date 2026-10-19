@@ -7,6 +7,7 @@ namespace fin::costs
     namespace
     {
         constexpr std::int64_t basisPointsPerUnit = 10000;
+        constexpr std::int64_t daysPerYear = 365;
     }
 
     BrokerFees::BrokerFees(const FeeSchedule& schedule)
@@ -41,5 +42,16 @@ namespace fin::costs
         const auto proportional = (portfolioValue * static_cast<std::int64_t>(schedule.connectivityBasisPoints)) / basisPointsPerUnit;
 
         return std::min(proportional, schedule.connectivityFeeCapPerExchangePerYear) * static_cast<std::int64_t>(exchanges);
+    }
+
+    core::Money BrokerFees::DebitInterest(const core::Money& balance, std::int32_t days) const
+    {
+        really_assert(balance.GetCurrency() == CurrencyOf(schedule));
+        really_assert(days >= 0);
+
+        if (balance.Cents() >= 0)
+            return core::Money::Zero(CurrencyOf(schedule));
+
+        return ((-balance) * static_cast<std::int64_t>(schedule.debitInterestBasisPoints) * static_cast<std::int64_t>(days)) / (basisPointsPerUnit * daysPerYear);
     }
 }

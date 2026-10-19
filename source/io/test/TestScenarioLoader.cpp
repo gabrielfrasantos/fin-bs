@@ -44,7 +44,7 @@ namespace
     std::string Row(std::string_view ticker, std::int32_t spotCents)
     {
         return R"({ "ticker": ")" + std::string(ticker) + R"(", "spot_cents": )" + std::to_string(spotCents) +
-               R"(, "drift_basis_points": 600, "volatility_basis_points": 2200, "dividend_yield_basis_points": 180, "strike_increment_cents": 100 })";
+               R"(, "drift_basis_points": 600, "volatility_basis_points": 2200, "implied_volatility_basis_points": 2400, "dividend_yield_basis_points": 180, "dividend_withholding_basis_points": 1500, "strike_increment_cents": 100 })";
     }
 
     std::vector<std::string> WithUnderlyings(const std::string& rows)
@@ -102,7 +102,9 @@ namespace
         EXPECT_EQ(second.initialPrice, Money::FromCents(68000, Currency::Eur));
         EXPECT_DOUBLE_EQ(second.drift.Continuous(), 0.09);
         EXPECT_DOUBLE_EQ(second.volatility.Annualized(), 0.34);
+        EXPECT_DOUBLE_EQ(second.impliedVolatility.Annualized(), 0.34);
         EXPECT_DOUBLE_EQ(second.dividendYield.Continuous(), 0.009);
+        EXPECT_EQ(second.dividendWithholdingBasisPoints, 1500);
         EXPECT_EQ(second.strikeIncrement, Money::FromCents(500, Currency::Eur));
     }
 
@@ -238,5 +240,20 @@ namespace
 
         EXPECT_FALSE(loader.Loaded().has_value());
         EXPECT_THAT(loader.Failure(), HasSubstr("GBP"));
+    }
+}
+
+namespace
+{
+    TEST(TestScenarioLoader, refuses_an_underlying_without_an_implied_volatility_or_a_withholding_rate)
+    {
+        const ScenarioLoader unpriced(Replacing(R"("implied_volatility_basis_points": 3400,)", ""));
+        const ScenarioLoader unwithheld(Replacing(R"("dividend_withholding_basis_points": 1500,
+            "strike_increment_cents": 500)", R"("strike_increment_cents": 500)"));
+
+        EXPECT_FALSE(unpriced.Loaded().has_value());
+        EXPECT_THAT(unpriced.Failure(), HasSubstr("implied_volatility_basis_points"));
+        EXPECT_FALSE(unwithheld.Loaded().has_value());
+        EXPECT_THAT(unwithheld.Failure(), HasSubstr("dividend_withholding_basis_points"));
     }
 }

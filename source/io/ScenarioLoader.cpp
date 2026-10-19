@@ -161,7 +161,9 @@ namespace fin::io
                     .initialPrice = AmountAt(entry, "spot_cents", currency, 1),
                     .drift = core::Rate::FromContinuous(FractionAt(entry, "drift_basis_points", -basisPointsPerUnit, basisPointsPerUnit)),
                     .volatility = core::Volatility::FromAnnualized(FractionAt(entry, "volatility_basis_points", 1, mostVolatilityBasisPoints)),
+                    .impliedVolatility = core::Volatility::FromAnnualized(FractionAt(entry, "implied_volatility_basis_points", 1, mostVolatilityBasisPoints)),
                     .dividendYield = core::Rate::FromContinuous(FractionAt(entry, "dividend_yield_basis_points", 0, basisPointsPerUnit)),
+                    .dividendWithholdingBasisPoints = IntegerAt(entry, "dividend_withholding_basis_points", 0, basisPointsPerUnit),
                     .strikeIncrement = AmountAt(entry, "strike_increment_cents", currency, 1) });
             }
 
@@ -298,7 +300,9 @@ namespace fin::io
                 entry.Add("spot_cents", underlying.initialPrice.Cents());
                 entry.Add("drift_basis_points", BasisPointsOf(underlying.drift.Continuous()));
                 entry.Add("volatility_basis_points", BasisPointsOf(underlying.volatility.Annualized()));
+                entry.Add("implied_volatility_basis_points", BasisPointsOf(underlying.impliedVolatility.Annualized()));
                 entry.Add("dividend_yield_basis_points", BasisPointsOf(underlying.dividendYield.Continuous()));
+                entry.Add("dividend_withholding_basis_points", underlying.dividendWithholdingBasisPoints);
                 entry.Add("strike_increment_cents", underlying.strikeIncrement.Cents());
             }
         }

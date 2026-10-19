@@ -94,7 +94,9 @@ namespace
             .strikeIncrement = Euro(1.00),
             .riskFreeRate = Rate::FromContinuous(0.02),
             .dividendYield = Rate::Zero(),
+            .dividendWithholdingBasisPoints = 1500,
             .volatility = Volatility::FromAnnualized(0.25),
+            .impliedVolatility = Volatility::FromAnnualized(0.25),
             .assessment = AnnualReference{ .month = 1, .day = 1 } };
     }
 

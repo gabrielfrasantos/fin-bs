@@ -13,6 +13,7 @@ namespace fin::sim
         double growthRate;
         std::int32_t positions;
         std::int32_t assignments;
+        std::int32_t cyclesInDebt;
         double maximumDrawdown;
         std::vector<core::Money> equityByCycle;
     };
@@ -31,6 +32,7 @@ namespace fin::sim
         double MeanGrowthRate() const;
         double WorstDrawdown() const;
         double AssignmentFrequency() const;
+        double DebtFrequency() const;
 
     private:
         explicit OutcomeDistribution(std::vector<PathOutcome>&& ordered);

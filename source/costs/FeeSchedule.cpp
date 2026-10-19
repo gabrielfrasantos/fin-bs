@@ -27,7 +27,8 @@ namespace fin::costs
                SharesCurrencyWith(schedule.handlingFeePerTrade, currency) &&
                SharesCurrencyWith(schedule.connectivityFeeCapPerExchangePerYear, currency) &&
                IsFraction(schedule.connectivityBasisPoints) &&
-               IsFraction(schedule.currencyHandlingBasisPoints);
+               IsFraction(schedule.currencyHandlingBasisPoints) &&
+               IsFraction(schedule.debitInterestBasisPoints);
     }
 
     core::Currency CurrencyOf(const FeeSchedule& schedule)

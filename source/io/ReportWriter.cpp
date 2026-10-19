@@ -60,6 +60,8 @@ namespace fin::io
                     return "tax";
                 case strategy::CashflowKind::Fx:
                     return "conversion";
+                case strategy::CashflowKind::Interest:
+                    return "interest";
             }
 
             really_assert(false);
@@ -69,7 +71,7 @@ namespace fin::io
 
     std::string CycleReport(std::span<const strategy::BookRow> rows)
     {
-        std::string report = "underlying,date,state,contracts,premium,fees,assignment,tax,cash,shares,equity\n";
+        std::string report = "underlying,date,state,contracts,premium,fees,assignment,dividend,tax,cash,shares,equity\n";
 
         for (const auto& entry : rows)
             report += entry.underlying + "," +
@@ -79,6 +81,7 @@ namespace fin::io
                       TextOf(entry.row.premium) + "," +
                       TextOf(entry.row.fees) + "," +
                       TextOf(entry.row.assignment) + "," +
+                      TextOf(entry.row.dividend) + "," +
                       TextOf(entry.row.tax) + "," +
                       TextOf(entry.row.cash) + "," +
                       std::to_string(entry.row.shares) + "," +

@@ -49,7 +49,9 @@ does not have. The layer is arranged so that each of these is either impossible 
 | A target delta strictly between zero and one | at one, every strike qualifies and the target selects nothing; at zero, none does |
 | A positive strike increment | strikes are listed on a grid, and a continuum of strikes is not tradable |
 | A non-negative dividend yield | a negative yield admits a delta outside its own bounds |
-| A positive volatility | a script priced at zero volatility writes options worth nothing and rolls that never trigger |
+| A positive volatility | a path that never moves is not a market |
+| A positive implied volatility | a script priced at zero volatility writes options worth nothing and rolls that never trigger |
+| A withholding rate between zero and the whole amount | a dividend cannot be withheld more than itself |
 | An annual reference date that exists in every year | a rule that skips leap years is a rule nobody stated |
 | A projection that has not yet been run | a run that starts from a used projection is not a run of the strategy described |
 | At least one path | a distribution over nothing has no percentile |
@@ -73,9 +75,11 @@ Each of these is a precondition, checked where it is stated and stopping the run
   the one chosen is the nearest whose delta does not exceed the target. The rule is conservative in
   one direction on purpose: it never writes an option with more delta than was asked for, so the
   risk taken is never quietly larger than the risk configured.
-- **The premium is what the model says the option is worth.** It is the valuation of the option the
-  script writes, at the price the path reached on the day it is written - never a figure chosen to
-  make the projection work.
+- **The premium is what the model says the option is worth at the stated implied volatility.** It is
+  the valuation of the option the script writes, at the price the path reached on the day it is
+  written and at the implied volatility the scenario states for the underlying, which may differ
+  from the volatility the path moves with ([D52](decisions.md)) - never a figure chosen to make the
+  projection work.
 - **The wheel decides what it writes; the script only says on what terms.** Whether the next option
   is a put or a call follows from where the wheel is, which follows from what the path did. The
   script is asked for one cycle at a time, after the previous one has settled, so it cannot assume a
@@ -108,9 +112,10 @@ Each of these is a precondition, checked where it is stated and stopping the run
   the same date.
 - The horizon of a run is the span from its opening date to its last expiry, not the sum of its
   cycles measured in years; the two differ because a year is not a whole number of cycles.
-- A wheel whose free cash is entirely committed can reach a charge it cannot pay, and the run stops.
-  The cash buffer is the lever, and a buffer of a few percent of capital covers an annual wealth
-  charge on the same capital with room to spare.
+- A wheel whose free cash is entirely committed can reach a charge it cannot pay from it. The charge
+  is borrowed, repaid from the next receipts at the broker's debit rate, and the distribution reports
+  the share of paths that borrowed ([D50](decisions.md)). The cash buffer is the lever that keeps
+  that share small.
 - Percentiles of a small run are coarse. With $N$ paths there are only $N$ distinct answers, and the
   5th and 50th percentile of twenty paths are frequently the same one.
 

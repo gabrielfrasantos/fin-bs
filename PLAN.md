@@ -937,7 +937,7 @@ chart is drawn with `QPainter` over geometry computed in a Qt-free layer.
 | T11.6 | Fan chart widget | `gui/FanChartWidget.hpp` — `QPainter` bands, median, axes, ticks; resizes without redistributing the geometry. Qt Test, offscreen: rendering into an image produces the expected pixel at the median at a known date, and an empty series paints an empty frame rather than crashing | T11.4 | M | **done** |
 | T11.7 | Prices, save, export | Load a price CSV per underlying and show the estimated volatility and drift it implies, with a button to adopt them into the row; save and load the scenario as JSON; export the results as CSV. Qt Test, offscreen: adopting an estimate changes exactly the two fields; save-then-load is the identical document, order included; export writes the T9.5 golden file | T11.5, T9.2, T9.4, T9.5 | M | **done** |
 | T11.8 | End-to-end golden run | The example scenario, three underlyings, a fixed seed: opened, run, and its table and recommendation compared against a committed golden file — the test T9.6 used to carry. Acceptance: green under `offscreen` with no display, and reproducible between Debug and Release | T11.7, T10.8 | M | **done**, table only |
-| T11.9 | Epic 11 documentation | `design/presentation.md` (what the window shows and why the model of it is Qt-free), decision log entries D50–D53, and the disclaimer shown beside every result recorded in `validation/README.md` | T11.1–T11.8 | M | |
+| T11.9 | Epic 11 documentation | `design/presentation.md` (what the window shows and why the model of it is Qt-free), decision log entries D53–D56, and the disclaimer shown beside every result recorded in `validation/README.md` | T11.1–T11.8 | M | |
 
 **Exit criteria:** a scenario of several underlyings is edited, saved, reloaded, run, watched,
 cancelled and exported from a window; every result carries the independence and model-risk
@@ -975,6 +975,16 @@ everything after them is additive.
 > and is asserted in both.
 
 ---
+
+### Epic 12 — Audit follow-ups
+
+The High findings of the audit in `documentation/audit/`, taken in the order the owner chose.
+
+| ID | Task | Detail | Depends | Size | Status |
+|---|---|---|---|---|---|
+| T12.1 | A charge free cash cannot meet is borrowed | `strategy/Portfolio` lets a payment with nothing reserved take the balance below zero; no put while below; `BrokerFees::DebitInterest` at the configured `debit_interest_basis_points`, posted as an `Interest` cashflow at the cycle's end; a simulation reports the share of paths that borrowed (D50). Tests: the book that used to abort borrows, charges 0.28 of interest and repays; the example scenario completes 10,000 paths | SIM-1, STRAT-1 | M | **done** |
+| T12.2 | Dividends accrue from the yield | `ProjectionPeriod` carries the dividend per share and the withholding rate; shares held at a cycle's opening receive it net at its end; `dividend_withholding_basis_points` per underlying; a `dividend` column in the cycle table (D51) | STRAT-2 | M | **done** |
+| T12.3 | Implied volatility separate from the path's | `implied_volatility_basis_points` per underlying prices the premium, the roll value, the delta and the strike; the path moves with `volatility_basis_points` (D52) | SIM-3 | S | **done** |
 
 ## 9. Validation Checklist (do before trusting numbers)
 
