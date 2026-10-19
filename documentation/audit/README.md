@@ -24,7 +24,7 @@ No code was changed by the audit itself; fixes are a separate decision per findi
 | 3 | `source/estimation` | [03-estimation.md](03-estimation.md) | done 2026-10-19 | 0 | 1 | 3 | 4 | 1 |
 | 4 | `source/io` | [04-io.md](04-io.md) | done 2026-10-19 | 0 | 0 | 2 | 5 | 1 |
 | 5 | `source/optimize` | [05-optimize.md](05-optimize.md) | done 2026-10-19 | 0 | 1 | 1 | 4 | 2 |
-| 6 | `source/pricing` | 06-pricing.md | pending | | | | | |
+| 6 | `source/pricing` | [06-pricing.md](06-pricing.md) | done 2026-10-19 | 0 | 0 | 1 | 3 | 2 |
 | 7 | `source/strategy` | 07-strategy.md | pending | | | | | |
 | 8 | `source/tax` | 08-tax.md | pending | | | | | |
 | 9 | `source/sim` | 09-sim.md | pending | | | | | |
