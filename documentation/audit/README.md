@@ -33,7 +33,7 @@ No code was changed by the audit itself; fixes are a separate decision per findi
 
 ## Where to start
 
-All nine phases are done. Across them: 0 Critical, 7 High, 19 Medium, 46 Low, 24 Info. The
+All nine phases are done. Across them: 0 Critical, 5 High, 19 Medium, 44 Low, 24 Info. The
 arithmetic of every layer reproduced independently; the findings that matter for real money are
 about what the chain does not do and what stops it.
 
