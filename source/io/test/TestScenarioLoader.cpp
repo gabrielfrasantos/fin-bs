@@ -249,7 +249,8 @@ namespace
     {
         const ScenarioLoader unpriced(Replacing(R"("implied_volatility_basis_points": 3400,)", ""));
         const ScenarioLoader unwithheld(Replacing(R"("dividend_withholding_basis_points": 1500,
-            "strike_increment_cents": 500)", R"("strike_increment_cents": 500)"));
+            "strike_increment_cents": 500)",
+            R"("strike_increment_cents": 500)"));
 
         EXPECT_FALSE(unpriced.Loaded().has_value());
         EXPECT_THAT(unpriced.Failure(), HasSubstr("implied_volatility_basis_points"));

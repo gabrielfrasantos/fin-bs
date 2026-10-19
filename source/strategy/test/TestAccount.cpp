@@ -1,5 +1,5 @@
-#include "source/strategy/Account.hpp"
 #include "source/costs/BrokerFees.hpp"
+#include "source/strategy/Account.hpp"
 #include <gtest/gtest.h>
 
 namespace
