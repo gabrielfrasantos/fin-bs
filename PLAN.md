@@ -1007,7 +1007,7 @@ unchanged. The UX rules live in `.claude/skills/qt-ux/SKILL.md`.
 | T14.1 | Models over the presentation layer | `gui/ScenarioModel`, `gui/UnderlyingsModel`, `gui/RunModel`, `gui/ResultTableModel`, `gui/ChartSeries`, `gui/Workspace`: properties and invokables QML binds to; every write goes through the document, every refusal is the document's sentence naming the field. Tests keep the golden projection check and every behaviour the Widgets tests pinned | Epic 11 | M | **done** |
 | T14.2 | The window in QML | Scenario pane grouped as capital and horizon, levers, tax and simulation, underlyings; each field in its stored unit with the figure in words beneath; the results pane with highlight cards, summary, fan chart, cycles and ledger; progress and cancel; light and dark themes; keyboard shortcuts | T14.1 | L | **done** |
 | T14.3 | Fan chart as a painted item | `gui/FanChartItem` paints the same geometry the Widgets chart did; one pixel of the median asserted in a test | T14.1 | S | **done** |
-| T14.4 | Screenshots and a scripted tour | `FIN_BS_DEMO=<folder>` drives the window through a tour offscreen and writes a picture per step; the pictures under `documentation/screenshots/` | T14.2 | S | **done** |
+| T14.4 | Screenshots and a scripted tour | `FIN_BS_DEMO=<folder>` drives the window through a tour offscreen and writes a picture per step; pictures are produced on demand, not committed | T14.2 | S | **done** |
 | T14.5 | Per-name collateral cap in the book | The BENELUX scenario showed the richest-premium-first rule handing the pot to one name; a cap per name, stated in the scenario, is the next modelling task before the calibration step | T13.1 | M | pending |
 
 ## 9. Validation Checklist (do before trusting numbers)

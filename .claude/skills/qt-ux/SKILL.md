@@ -89,4 +89,4 @@ hint next to the stored figure (cents, basis points), never a second source of t
   one numbered PNG per step (scenario, projection under way and done, fan chart, cycles, ledger,
   simulation under way and done, underlyings, a validation refusal, the dark theme) and quits.
 - An animated tour: `ffmpeg -framerate 0.6 -pattern_type glob -i '*.png' -vf "scale=1080:-1,split[a][b];[a]palettegen[p];[b][p]paletteuse" tour.gif`.
-- Committed pictures live under `documentation/screenshots/`; refresh them when the layout changes.
+- Pictures are not committed: produce them with the tour when they are wanted.
