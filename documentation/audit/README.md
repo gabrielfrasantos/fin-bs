@@ -20,7 +20,7 @@ No code was changed by the audit itself; fixes are a separate decision per findi
 | # | Module | Report | Status | Critical | High | Medium | Low | Info |
 |---|---|---|---|---|---|---|---|---|
 | 1 | `source/core` | [01-core.md](01-core.md) | done 2026-10-18 | 0 | 0 | 2 | 6 | 5 |
-| 2 | `source/costs` | 02-costs.md | pending | | | | | |
+| 2 | `source/costs` | [02-costs.md](02-costs.md) | done 2026-10-19 | 0 | 0 | 3 | 5 | 2 |
 | 3 | `source/estimation` | 03-estimation.md | pending | | | | | |
 | 4 | `source/io` | 04-io.md | pending | | | | | |
 | 5 | `source/optimize` | 05-optimize.md | pending | | | | | |
