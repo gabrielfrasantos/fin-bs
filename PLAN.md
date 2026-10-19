@@ -986,6 +986,16 @@ The High findings of the audit in `documentation/audit/`, taken in the order the
 | T12.2 | Dividends accrue from the yield | `ProjectionPeriod` carries the dividend per share and the withholding rate; shares held at a cycle's opening receive it net at its end; `dividend_withholding_basis_points` per underlying; a `dividend` column in the cycle table (D51) | STRAT-2 | M | **done** |
 | T12.3 | Implied volatility separate from the path's | `implied_volatility_basis_points` per underlying prices the premium, the roll value, the delta and the strike; the path moves with `volatility_basis_points` (D52) | SIM-3 | S | **done** |
 
+### Epic 13 — Candidate underlyings and calibration
+
+The owner's three asks after the audit, taken one step at a time: names to point the model at, a
+better interface, and a calibration that follows the market.
+
+| ID | Task | Detail | Depends | Size | Status |
+|---|---|---|---|---|---|
+| T13.1 | BENELUX option candidates | A screen of Euronext Amsterdam and Brussels single-stock option classes for the wheel: option liquidity first, then a share price that fits the capital (one contract at or under about 5% of EUR 200,000), then at most two names per sector. Public-web sweep of 96 names, 53 fact sheets each challenged by three independent reviewers, three rankings and one synthesis, a completeness check; the ten picks and five alternates in `documentation/research/benelux-option-candidates.md`, the figures in `config/scenarios/benelux.json` | Epic 12 | M | **done** |
+| T13.2 | Rule-based rolling re-estimation | Drift and volatility re-estimated from the price history on a rolling window as a run advances (the EMA and RLS estimators exist and are unused), with the rules stated as decisions and the backtest on the ten names; price histories supplied by the owner as `date,close` files | T13.1, T9.2 | L | pending |
+
 ## 9. Validation Checklist (do before trusting numbers)
 
 Tracked, with sources and dates, in

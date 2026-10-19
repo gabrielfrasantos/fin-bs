@@ -15,6 +15,7 @@ hand or in a spreadsheet, and none of them should need rewriting if the implemen
 | [`design/`](design/) | *Why is the model shaped like this?* | Quantities and their invariants, trade-offs, the decision log |
 | [`theory/`](theory/) | *What is being computed, and why is that correct?* | Definitions, derivations, worked examples, edge cases |
 | [`validation/`](validation/) | *Do we trust the inputs and outputs?* | Authoritative sources for tax and fee parameters, dates checked, the pre-use checklist |
+| [`research/`](research/) | *Which markets and names is the model pointed at?* | Screens of candidate underlyings, with the criteria, the sources and the dates checked |
 
 The split matters: a `theory/` document states facts about finance and mathematics that are true
 regardless of this project, while a `design/` document records choices this project made and may
@@ -106,3 +107,9 @@ one day reverse.
 
 - [Validation index & checklist](validation/README.md).
 - [External parameter sources](validation/sources.md).
+
+### Research
+
+- [BENELUX option candidates](research/benelux-option-candidates.md) - ten Euronext Amsterdam and
+  Brussels names screened for option liquidity, share price against the capital, and sector spread,
+  with the scenario figures derived from them.
