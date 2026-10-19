@@ -9,18 +9,39 @@ target_include_directories(fin.gui PUBLIC
 
 target_link_libraries(fin.gui PUBLIC
     fin.present
-    Qt6::Widgets
+    Qt6::Quick
+    Qt6::QuickControls2
 )
 
 target_sources(fin.gui PRIVATE
-    FanChartWidget.cpp
-    FanChartWidget.hpp
-    MainWindow.cpp
-    MainWindow.hpp
-    ResultsPanel.cpp
-    ResultsPanel.hpp
-    ScenarioPanel.cpp
-    ScenarioPanel.hpp
+    ChartSeries.cpp
+    ChartSeries.hpp
+    FanChartItem.cpp
+    FanChartItem.hpp
+    Resources.cpp
+    Resources.hpp
+    ResultTableModel.cpp
+    ResultTableModel.hpp
+    RunModel.cpp
+    RunModel.hpp
+    ScenarioModel.cpp
+    ScenarioModel.hpp
+    UnderlyingsModel.cpp
+    UnderlyingsModel.hpp
+    Workspace.cpp
+    Workspace.hpp
+)
+
+qt_add_resources(fin.gui "fin_gui_qml"
+    PREFIX "/fin"
+    FILES
+        qml/Field.qml
+        qml/Main.qml
+        qml/ResultsPane.qml
+        qml/ScenarioPane.qml
+        qml/Section.qml
+        qml/TablePane.qml
+        qml/UnderlyingsEditor.qml
 )
 
 add_subdirectory(test)

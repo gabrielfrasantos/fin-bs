@@ -86,12 +86,12 @@ ourselves** as a new library layer *on top* of the toolbox. This plan makes that
 - **JSON/CSV:** parsing uses emil's `infra/syntax/Json.hpp` (already on the dependency graph) — no
   new third-party parser is introduced. Writing a scenario back out uses emil's
   `infra/syntax/JsonFormatter.hpp`, for the same reason.
-- **GUI:** **Qt 6 Widgets**, taken from the system (`qt6-base-dev`), *not* fetched by CMake — it is
-  far too large to build from source per configure, and the development container already carries
-  6.10.2. It is a **hard dependency**: the build requires `Qt6::Widgets` and `Qt6::Test`. Only the
-  Qt Base modules may be used, because that is all that is installed: there is **no Qt Charts and no
-  Qt Quick/QML**, so every chart is drawn by hand with `QPainter`. Widget tests run under the
-  `offscreen` platform plugin so they need no display.
+- **GUI:** **Qt 6 Quick (QML)**, taken from the system, *not* fetched by CMake — it is far too
+  large to build from source per configure. It is a **hard dependency**: the build requires
+  `Qt6::Quick`, `Qt6::QuickControls2` and `Qt6::Test`. No Qt Charts: the fan chart is painted by a
+  `QQuickPaintedItem` over geometry computed in the Qt-free presentation layer. GUI tests run under
+  the `offscreen` platform plugin with the software renderer, so they need no display and no
+  graphics driver (Epic 14; the Widgets window of Epic 11 is history).
 - **Data:** you provide historical price CSVs and an options chain snapshot (CSV/JSON). **No live
   broker API integration in v1** — DEGIRO has no official retail API. See §7.
 - **Currency:** EUR base. If trading USD-denominated underlyings (e.g. US ETFs), FX is modeled.
@@ -235,8 +235,8 @@ fin-bs/
 │   ├── io/              # CSV/JSON loaders, ReportWriter                  → fin.io
 │   ├── present/         # Qt-free scenario document, run controller,      → fin.present
 │   │                    # table and chart models
-│   ├── gui/             # Qt Widgets window, panels, hand-drawn charts    → fin.gui
-│   └── app/             # main.cpp — constructs QApplication, shows it    → fin.app
+│   ├── gui/             # Qt Quick models, painted chart, the QML window  → fin.gui
+│   └── app/             # main.cpp — the engine, the window, the demo tour → fin.app
 │       (each module also contains test/ and, where useful, test_doubles/)
 └── documentation/       # written docs — see §3.1
     ├── TEMPLATE.md      # start every new document from this
@@ -454,9 +454,9 @@ tax assessment — and lends them to each wheel in turn.
   underlying table (add, remove, reorder — order is a modelling input, see §4.8), the global levers,
   and the run buttons. The right is the per-cycle table, the ledger, the fan chart and the
   recommendation.
-- `gui/FanChartWidget`: a `QPainter` widget drawing the percentile bands and the median path, with
-  its own axes and ticks. Hand-drawn because Qt Charts is not available (§0.3), and it is roughly a
-  few hundred lines because the geometry is computed elsewhere.
+- `gui/FanChartItem`: a painted Qt Quick item drawing the percentile bands and the median path,
+  with its own axes and ticks. Hand-drawn because Qt Charts is not a dependency (§0.3), and it is
+  roughly a hundred lines because the geometry is computed elsewhere.
 - `app/main.cpp`: constructs the application, loads the tax and broker configuration, shows the
   window. Nothing else.
 - **Tests:** the presenters under GoogleTest as ordinary types; the widgets under **Qt Test** with
@@ -995,6 +995,20 @@ better interface, and a calibration that follows the market.
 |---|---|---|---|---|---|
 | T13.1 | BENELUX option candidates | A screen of Euronext Amsterdam and Brussels single-stock option classes for the wheel: option liquidity first, then a share price that fits the capital (one contract at or under about 5% of EUR 200,000), then at most two names per sector. Public-web sweep of 96 names, 53 fact sheets each challenged by three independent reviewers, three rankings and one synthesis, a completeness check; the ten picks and five alternates in `documentation/research/benelux-option-candidates.md`, the figures in `config/scenarios/benelux.json` | Epic 12 | M | **done** |
 | T13.2 | Rule-based rolling re-estimation | Drift and volatility re-estimated from the price history on a rolling window as a run advances (the EMA and RLS estimators exist and are unused), with the rules stated as decisions and the backtest on the ten names; price histories supplied by the owner as `date,close` files | T13.1, T9.2 | L | pending |
+
+### Epic 14 — Qt Quick interface
+
+The owner's second ask after the audit: a better interface to see and work the parameters. Qt Quick
+(QML) with the Material style replaces the Widgets window; the presentation layer stays Qt-free and
+unchanged. The UX rules live in `.claude/skills/qt-ux/SKILL.md`.
+
+| ID | Task | Detail | Depends | Size | Status |
+|---|---|---|---|---|---|
+| T14.1 | Models over the presentation layer | `gui/ScenarioModel`, `gui/UnderlyingsModel`, `gui/RunModel`, `gui/ResultTableModel`, `gui/ChartSeries`, `gui/Workspace`: properties and invokables QML binds to; every write goes through the document, every refusal is the document's sentence naming the field. Tests keep the golden projection check and every behaviour the Widgets tests pinned | Epic 11 | M | **done** |
+| T14.2 | The window in QML | Scenario pane grouped as capital and horizon, levers, tax and simulation, underlyings; each field in its stored unit with the figure in words beneath; the results pane with highlight cards, summary, fan chart, cycles and ledger; progress and cancel; light and dark themes; keyboard shortcuts | T14.1 | L | **done** |
+| T14.3 | Fan chart as a painted item | `gui/FanChartItem` paints the same geometry the Widgets chart did; one pixel of the median asserted in a test | T14.1 | S | **done** |
+| T14.4 | Screenshots and a scripted tour | `FIN_BS_DEMO=<folder>` drives the window through a tour offscreen and writes a picture per step; pictures are produced on demand, not committed | T14.2 | S | **done** |
+| T14.5 | Per-name collateral cap in the book | The BENELUX scenario showed the richest-premium-first rule handing the pot to one name; a cap per name, stated in the scenario, is the next modelling task before the calibration step | T13.1 | M | pending |
 
 ## 9. Validation Checklist (do before trusting numbers)
 

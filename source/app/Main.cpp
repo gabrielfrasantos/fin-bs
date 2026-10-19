@@ -1,17 +1,39 @@
-#include "source/gui/MainWindow.hpp"
-#include <QApplication>
+#include "source/app/Demo.hpp"
+#include "source/gui/Resources.hpp"
+#include "source/gui/Workspace.hpp"
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include <QQuickStyle>
 #include <QString>
+#include <QUrl>
+#include <memory>
 
 int main(int argc, char* argv[])
 {
-    QApplication application(argc, argv);
+    QGuiApplication application(argc, argv);
+    application.setApplicationName("fin-bs");
+    application.setOrganizationName("fin-bs");
+
+    QQuickStyle::setStyle("Material");
+    fin::gui::Initialise();
 
     const QString configurations = argc > 1 ? QString::fromLocal8Bit(argv[1]) : QString(FIN_BS_CONFIG_DIRECTORY);
 
-    fin::gui::MainWindow window(configurations);
-    window.Open(configurations + "/scenarios/example.json");
-    window.resize(1440, 900);
-    window.show();
+    fin::gui::Workspace workspace(configurations);
+    workspace.Open(configurations + "/scenarios/example.json");
 
-    return QApplication::exec();
+    QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty("workspace", &workspace);
+    engine.load(QUrl("qrc:/fin/qml/Main.qml"));
+
+    if (engine.rootObjects().isEmpty())
+        return 1;
+
+    std::unique_ptr<fin::app::Demo> demo;
+
+    if (qEnvironmentVariableIsSet("FIN_BS_DEMO"))
+        demo = std::make_unique<fin::app::Demo>(engine, workspace, qEnvironmentVariable("FIN_BS_DEMO"));
+
+    return QGuiApplication::exec();
 }

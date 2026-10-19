@@ -1239,3 +1239,18 @@ uses the realised one.
 can calibrate the two separately. A scenario with the two equal reproduces the previous behaviour to
 the cent. The cost is one more figure per underlying that has to come from somewhere, and that a
 bid-ask spread is still not modelled.
+
+## D53 - The window is Qt Quick over a Qt-free presentation layer (2026-10-19)
+
+The desktop window is written in QML with Qt Quick Controls in the Material style, replacing the
+Widgets window of Epic 11. Nothing below the presentation layer changed: the scenario document, the
+run controller, the result tables and the chart geometry are still Qt-free and still the only
+source of every figure shown. The Qt layer exposes them as properties and invokables; QML binds to
+them and never computes a financial quantity. A value shown in words (euro, percent) is a hint
+beside the stored figure (cents, basis points), never a second representation that could drift.
+
+Why: the owner wanted an interface that explains its parameters and reports a run honestly, and
+Qt Quick gives layout, theming and animation that Widgets make laborious, without touching the
+model. The cost is a second toolchain concern (QML files compiled into the binary, a software
+renderer for tests without a display), which the build and the tests carry.
+

@@ -40,7 +40,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED On)
 set_directory_properties(PROPERTY USE_FOLDERS ON)
 
 # Qt is whatever the machine has: required here so a missing or too-old install fails at configure time.
-find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Test)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Quick QuickControls2 Test)
 
 if (FIN_BS_BUILD_TESTS)
     include(CTest)
