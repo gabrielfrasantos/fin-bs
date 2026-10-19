@@ -3,8 +3,6 @@ import QtQuick.Controls
 import QtQuick.Controls.Material
 import QtQuick.Layouts
 
-// The scenario, grouped the way a person thinks about it: what is at stake and for how long,
-// the levers the strategy is run with, the tax and the simulation, then the book of names.
 ScrollView {
     id: pane
 

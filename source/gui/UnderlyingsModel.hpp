@@ -8,8 +8,6 @@
 
 namespace fin::gui
 {
-    // The ordered list of underlyings of a scenario document, as a list model whose roles are the
-    // fields of a row. Editing a role edits the document; the document stays the one source of truth.
     class UnderlyingsModel
         : public QAbstractListModel
     {
@@ -46,7 +44,6 @@ namespace fin::gui
         Q_INVOKABLE QString heading(int column) const;
         Q_INVOKABLE QString unit(int column) const;
 
-        // Called by the owner when the document was replaced or reordered underneath this model.
         void Reset();
 
     signals:

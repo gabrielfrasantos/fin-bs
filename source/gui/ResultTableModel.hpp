@@ -8,8 +8,6 @@
 
 namespace fin::gui
 {
-    // A result table as the window shows it: the strings the presentation layer formatted, never a
-    // number reformatted here.
     class ResultTableModel
         : public QAbstractTableModel
     {

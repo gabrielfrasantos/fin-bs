@@ -3,8 +3,6 @@ import QtQuick.Controls
 import QtQuick.Controls.Material
 import QtQuick.Layouts
 
-// A titled group of fields with one line saying what the group is for. Progressive disclosure: a
-// group can start collapsed, so the levers a first-time reader does not need stay out of the way.
 Frame {
     id: section
 

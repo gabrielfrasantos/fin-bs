@@ -32,8 +32,6 @@ target_sources(fin.gui PRIVATE
     Workspace.hpp
 )
 
-# The window is QML, carried inside the library so that the application and the tests load the
-# same files from the same place, without a path to look them up at.
 qt_add_resources(fin.gui "fin_gui_qml"
     PREFIX "/fin"
     FILES

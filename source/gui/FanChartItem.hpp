@@ -8,8 +8,6 @@
 
 namespace fin::gui
 {
-    // Paints the percentile band and the median of a chart series over geometry that the Qt-free
-    // layer computed: the item only maps model coordinates onto its own pixels.
     class FanChartItem
         : public QQuickPaintedItem
     {

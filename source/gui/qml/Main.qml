@@ -8,7 +8,6 @@ ApplicationWindow {
     id: window
     objectName: "window"
 
-    // The theme is a property so that a tour, a test or a user can flip it.
     property bool dark: false
     readonly property var scenario: workspace.scenario
     readonly property var run: workspace.run
@@ -25,7 +24,6 @@ ApplicationWindow {
     Material.accent: Material.Indigo
 
     header: ToolBar {
-        // The brand bar keeps the same colours in both themes, so its controls always read.
         Material.theme: Material.Dark
         Material.elevation: 2
         background: Rectangle { color: "#3f51b5" }

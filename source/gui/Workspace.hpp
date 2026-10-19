@@ -8,8 +8,6 @@
 
 namespace fin::gui
 {
-    // What the window works on: the scenario, the run, where the configuration files live, and
-    // the last thing that went wrong at a file boundary.
     class Workspace
         : public QObject
     {

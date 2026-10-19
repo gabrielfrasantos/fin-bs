@@ -9,7 +9,6 @@
 #include <QDir>
 #include <QtQml>
 
-// The macro declares the generated initialiser, so it has to expand outside every namespace.
 static void InitialiseEmbeddedFiles()
 {
     Q_INIT_RESOURCE(fin_gui_qml);

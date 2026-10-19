@@ -5,7 +5,6 @@
 
 namespace fin::gui
 {
-    // The geometry of a chart, held where a painted item can watch it change.
     class ChartSeries
         : public QObject
     {

@@ -12,9 +12,6 @@ class QQuickWindow;
 
 namespace fin::app
 {
-    // Drives the window through a scripted tour and saves a picture after every step, so that the
-    // interface can be shown without a display attached. Started by the FIN_BS_DEMO environment
-    // variable, which names the folder the pictures go to; FIN_BS_DEMO_SCENARIO names the scenario.
     class Demo
         : public QObject
     {

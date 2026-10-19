@@ -11,9 +11,6 @@
 
 namespace fin::gui
 {
-    // The scenario being edited, as properties the window binds to. Every write goes through the
-    // Qt-free document, which is also where a field is judged: the window never clamps a value, it
-    // shows why the document refuses it.
     class ScenarioModel
         : public QObject
     {

@@ -4,8 +4,6 @@ import QtQuick.Controls.Material
 import QtQuick.Layouts
 import Fin 1.0
 
-// What a run produced: the few figures that matter first, then the chart and the tables behind
-// them, and the disclaimer that every result carries.
 ColumnLayout {
     id: pane
 

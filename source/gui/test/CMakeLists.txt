@@ -17,7 +17,6 @@ function(fin_bs_add_gui_test target source)
     target_sources(${target} PRIVATE ${source})
 
     if (FIN_BS_BUILD_TESTS)
-        # No display, and no graphics driver: the scene graph renders in software.
         set_tests_properties(${target} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software")
     endif()
 endfunction()

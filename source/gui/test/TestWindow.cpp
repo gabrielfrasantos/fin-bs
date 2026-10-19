@@ -20,13 +20,11 @@ namespace
         return Configurations() + "/scenarios/example.json";
     }
 
-    // The window as the application builds it: the same QML, the same style, the same workspace.
     struct Shown
     {
         explicit Shown(const QString& scenario)
             : workspace(Configurations())
         {
-            // The style is chosen once per process, before the first window is loaded.
             static const bool styled = []
             {
                 QQuickStyle::setStyle("Material");

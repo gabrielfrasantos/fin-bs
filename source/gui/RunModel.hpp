@@ -15,8 +15,6 @@ class QTimer;
 
 namespace fin::gui
 {
-    // Starts a projection, a simulation or a search on a worker thread, reports its progress to the
-    // window at a steady beat, and presents the outcome as tables, a chart and a few figures.
     class RunModel
         : public QObject
     {

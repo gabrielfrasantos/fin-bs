@@ -3,10 +3,6 @@ import QtQuick.Controls
 import QtQuick.Controls.Material
 import QtQuick.Layouts
 
-// One whole-number field: a caption, the number in the unit the model stores (cents or basis
-// points, so what is typed is what is run), and under it the same figure in words a person
-// reads (euro, percent). Red when the model refuses the value, with the model's reason shown
-// at the top of the pane.
 ColumnLayout {
     id: field
 

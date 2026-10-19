@@ -143,7 +143,6 @@ namespace fin::app
             return;
         }
 
-        // A run: take one picture while it is under way, and one when it has finished.
         QTimer::singleShot(settle, this, [this, name = step.name]
             {
                 Capture(name + "-underway");

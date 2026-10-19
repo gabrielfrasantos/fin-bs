@@ -3,8 +3,6 @@ import QtQuick.Controls
 import QtQuick.Controls.Material
 import QtQuick.Layouts
 
-// A result table: the headings the presentation layer named, the strings it formatted, nothing
-// recomputed on the way to the screen.
 Item {
     id: pane
 
@@ -20,7 +18,6 @@ Item {
         return 130
     }
 
-    // A Flickable adopts its children, so the hint for an empty table lives beside the layout.
     Label {
         anchors.centerIn: parent
         anchors.verticalCenterOffset: 16

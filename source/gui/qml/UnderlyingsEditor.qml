@@ -3,8 +3,6 @@ import QtQuick.Controls
 import QtQuick.Controls.Material
 import QtQuick.Layouts
 
-// The book as an editable grid: one row per name, one cell per field, the row that is selected
-// explained underneath in the units a person reads.
 ColumnLayout {
     id: editor
 
