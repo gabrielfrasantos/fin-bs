@@ -36,6 +36,7 @@ namespace fin::strategy
     {
         core::Date opened;
         core::Date expiry;
+        core::Money spotAtOpen;
         core::Money strike;
         double premiumPerShare;
         core::Money spotAtExpiry;
@@ -70,7 +71,7 @@ namespace fin::strategy
 
         std::vector<ProjectionRow> Over(std::span<const ProjectionPeriod> periods);
 
-        void Write(const ProjectionPeriod& period);
+        void Write(const ProjectionPeriod& period, const core::Money& openingEquity);
         ProjectionRow Settle(const ProjectionPeriod& period, std::span<const SpotPrice> marks);
 
         const std::string& Underlying() const;

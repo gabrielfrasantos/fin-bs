@@ -69,6 +69,7 @@ namespace
     {
         return { .opened = opened,
             .expiry = expiry,
+            .spotAtOpen = Euro(strike),
             .strike = Euro(strike),
             .premiumPerShare = premiumPerShare,
             .spotAtExpiry = Euro(spotAtExpiry),
@@ -79,6 +80,21 @@ namespace
     Book Of(std::vector<std::string> underlyings, const Money& capital)
     {
         return Book(std::move(underlyings), Portfolio::Funded(capital), ReinvestmentPolicy::WithCashBuffer(0), NeverRolls(), Fees(), Rules());
+    }
+
+    Book Capped(std::vector<std::string> underlyings, const Money& capital, std::int32_t capBasisPoints)
+    {
+        return Book(std::move(underlyings), Portfolio::Funded(capital), ReinvestmentPolicy::WithCashBufferAndCap(0, capBasisPoints), NeverRolls(), Fees(), Rules());
+    }
+
+    std::vector<std::int64_t> ContractsOf(std::span<const BookRow> rows)
+    {
+        std::vector<std::int64_t> contracts;
+
+        for (const auto& row : rows)
+            contracts.push_back(row.row.contracts);
+
+        return contracts;
     }
 
     std::vector<std::string> WrittenBy(std::span<const BookRow> rows)
@@ -149,6 +165,34 @@ TEST(TestBook, the_pot_is_shared_so_one_underlying_can_leave_nothing_for_another
     EXPECT_EQ(WrittenBy(rows), (std::vector<std::string>{ "RICH" }));
     EXPECT_EQ(book.Holdings().Cash(), Euro(5199.25));
     EXPECT_TRUE(Reconciles(book.Holds()));
+}
+
+TEST(TestBook, a_cap_per_name_leaves_the_rest_of_the_book_for_the_next_name)
+{
+    auto uncapped = Of({ "RICH", "POOR" }, Euro(5000.00));
+    auto capped = Capped({ "RICH", "POOR" }, Euro(5000.00), 5000);
+
+    const std::vector<BookPeriod> cycle{
+        { "RICH", Period(On(2025, 1, 3), On(2025, 7, 18), 20.00, 1.00, 25.00) },
+        { "POOR", Period(On(2025, 1, 3), On(2025, 7, 18), 20.00, 0.10, 25.00) }
+    };
+
+    EXPECT_EQ(ContractsOf(uncapped.Over(cycle)), (std::vector<std::int64_t>{ 2, 0 }));
+    EXPECT_EQ(ContractsOf(capped.Over(cycle)), (std::vector<std::int64_t>{ 1, 1 }));
+    EXPECT_TRUE(Reconciles(capped.Holds()));
+}
+
+TEST(TestBook, a_cap_of_the_whole_book_is_the_book_as_it_was_before)
+{
+    auto uncapped = Of({ "RICH", "POOR" }, Euro(5000.00));
+    auto whole = Capped({ "RICH", "POOR" }, Euro(5000.00), 10000);
+
+    const std::vector<BookPeriod> cycle{
+        { "RICH", Period(On(2025, 1, 3), On(2025, 7, 18), 40.00, 2.00, 45.00) },
+        { "POOR", Period(On(2025, 1, 3), On(2025, 7, 18), 40.00, 0.10, 45.00) }
+    };
+
+    EXPECT_EQ(uncapped.Over(cycle), whole.Over(cycle));
 }
 
 TEST(TestBook, the_richer_premium_takes_the_cash_whatever_order_the_book_lists_it_in)

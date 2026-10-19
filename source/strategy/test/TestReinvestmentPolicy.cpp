@@ -20,7 +20,36 @@ namespace
 
         ReinvestmentPolicy fullyInvested{ ReinvestmentPolicy::WithCashBuffer(0) };
         ReinvestmentPolicy buffered{ ReinvestmentPolicy::WithCashBuffer(fivePercent) };
+        ReinvestmentPolicy capped{ ReinvestmentPolicy::WithCashBufferAndCap(0, 1500) };
     };
+}
+
+TEST_F(TestReinvestmentPolicy, a_cap_that_is_not_a_fraction_of_the_book_is_refused)
+{
+    EXPECT_DEATH(ReinvestmentPolicy::WithCashBufferAndCap(0, 0), "");
+    EXPECT_DEATH(ReinvestmentPolicy::WithCashBufferAndCap(0, 10001), "");
+}
+
+TEST_F(TestReinvestmentPolicy, a_policy_stated_without_a_cap_lets_one_name_take_the_whole_book)
+{
+    EXPECT_EQ(fullyInvested.CapBasisPoints(), 10000);
+    EXPECT_EQ(fullyInvested.Ceiling(Euro(100000.00)), Euro(100000.00));
+    EXPECT_EQ(fullyInvested.ContractsFor(Euro(100000.00), Euro(4688.00), Euro(100000.00)), 21);
+}
+
+TEST_F(TestReinvestmentPolicy, the_cap_limits_a_name_to_its_share_of_the_opening_equity)
+{
+    EXPECT_EQ(capped.Ceiling(Euro(100000.00)), Euro(15000.00));
+    EXPECT_EQ(capped.ContractsFor(Euro(100000.00), Euro(4688.00), Euro(100000.00)), 3);
+    EXPECT_EQ(capped.ContractsFor(Euro(100000.00), Euro(15000.00), Euro(100000.00)), 1);
+    EXPECT_EQ(capped.ContractsFor(Euro(100000.00), Euro(15000.01), Euro(100000.00)), 0);
+}
+
+TEST_F(TestReinvestmentPolicy, the_cap_is_measured_against_the_whole_book_and_the_cash_still_binds)
+{
+    EXPECT_EQ(capped.ContractsFor(Euro(20000.00), Euro(4000.00), Euro(200000.00)), 5);
+    EXPECT_EQ(capped.ContractsFor(Euro(20000.00), Euro(4000.00), Euro(20000.00)), 0);
+    EXPECT_EQ(capped.ContractsFor(Euro(20000.00), Euro(4000.00), Euro(-100.00)), 0);
 }
 
 TEST_F(TestReinvestmentPolicy, a_buffer_that_is_not_a_fraction_is_refused)

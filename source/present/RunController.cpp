@@ -65,7 +65,7 @@ namespace fin::present
         {
             return strategy::Book(script.Underlyings(),
                 strategy::Portfolio::Funded(inputs.scenario.capital),
-                strategy::ReinvestmentPolicy::WithCashBuffer(inputs.scenario.cashBufferBasisPoints),
+                strategy::ReinvestmentPolicy::WithCashBufferAndCap(inputs.scenario.cashBufferBasisPoints, inputs.scenario.maxCollateralPerNameBasisPoints),
                 strategy::RollRules(inputs.scenario.triggers),
                 costs::BrokerFees(inputs.fees),
                 tax::Box3TaxModel(inputs.taxes));
@@ -254,6 +254,7 @@ namespace fin::present
 
         const optimize::BookExperiment experiment{ .start = strategy::Portfolio::Funded(inputs.scenario.capital),
             .triggers = inputs.scenario.triggers,
+            .maxCollateralPerNameBasisPoints = inputs.scenario.maxCollateralPerNameBasisPoints,
             .fees = costs::BrokerFees(inputs.fees),
             .taxes = tax::Box3TaxModel(inputs.taxes),
             .terms = inputs.scenario.terms,

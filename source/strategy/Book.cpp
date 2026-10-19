@@ -44,8 +44,10 @@ namespace fin::strategy
 
         std::vector<CollateralClaim> claims;
         std::vector<SpotPrice> marks;
+        std::vector<SpotPrice> opening;
         claims.reserve(cycle.size());
         marks.reserve(cycle.size());
+        opening.reserve(cycle.size());
 
         for (const auto& entry : cycle)
         {
@@ -62,7 +64,10 @@ namespace fin::strategy
                 .strike = entry.period.strike });
 
             marks.push_back({ entry.underlying, entry.period.spotAtExpiry });
+            opening.push_back({ entry.underlying, entry.period.spotAtOpen });
         }
+
+        const auto openingEquity = Equity(account.Holdings(), opening);
 
         std::vector<Projection> wheels;
         wheels.reserve(cycle.size());
@@ -71,7 +76,7 @@ namespace fin::strategy
             wheels.emplace_back(entry.underlying, account, policy, rules, brokerFees);
 
         for (const auto claim : ServiceOrder(claims))
-            wheels[claim].Write(cycle[claim].period);
+            wheels[claim].Write(cycle[claim].period, openingEquity);
 
         AccrueDebitInterest(account, brokerFees, openingCash, opened, expiry);
 

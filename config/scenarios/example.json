@@ -8,6 +8,7 @@
     "observation_days_before_expiry": 14,
     "target_delta_basis_points": 3000,
     "cash_buffer_basis_points": 500,
+    "max_collateral_per_name_basis_points": 10000,
     "roll_delta_limit_basis_points": 5000,
     "roll_days_to_expiry": 7,
     "roll_profit_capture_basis_points": 8000,

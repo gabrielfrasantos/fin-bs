@@ -99,6 +99,7 @@ private slots:
         QVERIFY(shown.Named("capital_cents") != nullptr);
         QCOMPARE(shown.Named("capital_cents")->property("value").toInt(), 20000000);
         QCOMPARE(shown.Named("target_delta_basis_points")->property("value").toInt(), 3000);
+        QCOMPARE(shown.Named("max_collateral_per_name_basis_points")->property("value").toInt(), 10000);
         QCOMPARE(shown.Named("underlyings")->property("count").toInt(), 3);
     }
 

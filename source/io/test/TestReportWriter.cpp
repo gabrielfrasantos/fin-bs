@@ -63,6 +63,7 @@ namespace
     {
         return { .opened = opened,
             .expiry = expiry,
+            .spotAtOpen = Euro(strike),
             .strike = Euro(strike),
             .premiumPerShare = premiumPerShare,
             .spotAtExpiry = Euro(spotAtExpiry),

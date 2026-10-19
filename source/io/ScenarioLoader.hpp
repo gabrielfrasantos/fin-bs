@@ -15,6 +15,7 @@ namespace fin::io
         std::string name;
         core::Money capital;
         std::int32_t cashBufferBasisPoints;
+        std::int32_t maxCollateralPerNameBasisPoints;
         strategy::RollTriggers triggers;
         sim::BookTerms terms;
         std::int32_t paths;

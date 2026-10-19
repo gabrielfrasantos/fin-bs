@@ -79,7 +79,7 @@ namespace fin::strategy
         {
             const std::array marks{ SpotPrice{ underlying, period.spotAtExpiry } };
 
-            Write(period);
+            Write(period, Equity(Books().Holdings(), underlying, period.spotAtOpen));
             rows.push_back(Settle(period, marks));
         }
 
@@ -116,7 +116,7 @@ namespace fin::strategy
         return owned.has_value() ? *owned : *shared;
     }
 
-    void Projection::Write(const ProjectionPeriod& period)
+    void Projection::Write(const ProjectionPeriod& period, const core::Money& openingEquity)
     {
         really_assert(!open.has_value());
 
@@ -124,6 +124,9 @@ namespace fin::strategy
         const auto currency = portfolio.GetCurrency();
 
         really_assert(period.opened <= period.expiry);
+        really_assert(period.spotAtOpen.GetCurrency() == currency);
+        really_assert(period.spotAtOpen.Cents() >= 0);
+        really_assert(openingEquity.GetCurrency() == currency);
         really_assert(period.premiumPerShare >= 0.0);
         really_assert(period.dividendPerShare >= 0.0);
         really_assert(period.dividendWithholdingBasisPoints >= 0 && period.dividendWithholdingBasisPoints <= basisPointsPerUnit);
@@ -137,7 +140,7 @@ namespace fin::strategy
 
         open = OpenCycle{ contract, nothing, period.assessed, portfolio.Shares(underlying), portfolio.Cash() };
         open->movements.contracts = writingPut
-                                        ? policy.ContractsFor(portfolio.FreeCash(), contract.Notional())
+                                        ? policy.ContractsFor(portfolio.FreeCash(), contract.Notional(), openingEquity)
                                         : portfolio.UncoveredShares(underlying) / static_cast<std::int64_t>(contract.Multiplier());
 
         if (open->movements.contracts == 0)
