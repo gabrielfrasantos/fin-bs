@@ -24,5 +24,5 @@ To refresh or extend: `python3 -I tools/fetch_prices.py --out data/prices` fetch
 the tool's table for the last two years; name tickers to fetch a few, `--since` and `--until` to
 bound the dates. A longer history from another source can replace a file as long as it keeps the
 shape; the loader refuses a duplicate or reversed date, a non-positive close, or a decimal comma,
-and names the line. A scenario finds the folder through its `calibration.price_histories` key, relative
-to the configuration directory (`../data/prices` from `config/`).
+and names the line. A scenario finds the folder through its `calibration.price_histories` key,
+relative to the configuration directory (`../data/prices` from `config/`).
