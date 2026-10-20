@@ -1,6 +1,7 @@
 #pragma once
 
 #include "source/optimize/Recommendation.hpp"
+#include "source/present/CalibrationRow.hpp"
 #include "source/sim/OutcomeDistribution.hpp"
 #include "source/strategy/Book.hpp"
 #include "source/strategy/CompoundingLedger.hpp"
@@ -22,4 +23,5 @@ namespace fin::present
     ResultTable LedgerTable(const strategy::CompoundingLedger& ledger);
     ResultTable OutcomeTable(const sim::OutcomeDistribution& distribution);
     ResultTable RecommendationTable(const optimize::Recommendation& recommendation);
+    ResultTable CalibrationTable(std::span<const CalibrationRow> rows);
 }

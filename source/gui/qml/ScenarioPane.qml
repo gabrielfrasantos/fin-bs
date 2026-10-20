@@ -314,6 +314,110 @@ ScrollView {
         Section {
             Layout.margins: 8
             Layout.topMargin: 0
+            title: qsTr("Calibration")
+            blurb: qsTr("Re-estimate each name's drift and volatility from its price history: at the start of a forward run, and at every cycle's opening of a backtest. The levers stay as set.")
+            collapsible: true
+            expanded: scenario.calibrated
+
+            RowLayout {
+                Layout.fillWidth: true
+                Label { Layout.preferredWidth: 190; text: qsTr("Calibrate from histories") }
+                Switch {
+                    objectName: "calibration"
+                    checked: scenario.calibrated
+                    onToggled: scenario.calibrated = checked
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: scenario.calibrated ? qsTr("drift and volatility come from the closes before each opening") : qsTr("the stated drift and volatility are used as they are")
+                    opacity: 0.85
+                    font.italic: true
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Label { Layout.preferredWidth: 190; text: qsTr("Price histories folder") }
+                TextField {
+                    objectName: "price_histories"
+                    Layout.fillWidth: true
+                    enabled: scenario.calibrated
+                    text: scenario.priceHistories
+                    placeholderText: qsTr("relative to the configuration folder; one TICKER.csv per name")
+                    onEditingFinished: scenario.priceHistories = text
+                }
+            }
+
+            Field {
+                caption: qsTr("Window")
+                fieldName: "window_observations"
+                unit: qsTr("closes")
+                enabled: scenario.calibrated
+                from: 1
+                to: 100000
+                value: scenario.windowObservations
+                hint: qsTr("about %1 trading years before each opening").arg(Number(scenario.windowObservations / 252).toLocaleString(pane.numbers, "f", 1))
+                offending: pane.offends("calibration.window_observations")
+                onEdited: function(value) { scenario.windowObservations = value }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Label { Layout.preferredWidth: 178; text: qsTr("Volatility estimator") }
+                ComboBox {
+                    objectName: "volatility_estimator"
+                    Layout.preferredWidth: 260
+                    enabled: scenario.calibrated
+                    model: [qsTr("Historical, every close alike"), qsTr("Exponentially weighted, recent closes first")]
+                    currentIndex: scenario.volatilityEstimator
+                    onActivated: function(index) { scenario.volatilityEstimator = index }
+                }
+            }
+
+            Field {
+                caption: qsTr("Half-life")
+                fieldName: "half_life_observations"
+                unit: qsTr("closes")
+                enabled: scenario.calibrated && scenario.volatilityEstimator === 1
+                from: 1
+                to: 100000
+                value: scenario.halfLifeObservations
+                hint: qsTr("a close this many back weighs half as much as the latest")
+                offending: pane.offends("calibration.half_life_observations")
+                onEdited: function(value) { scenario.halfLifeObservations = value }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Label { Layout.preferredWidth: 178; text: qsTr("Drift estimator") }
+                ComboBox {
+                    objectName: "drift_estimator"
+                    Layout.preferredWidth: 260
+                    enabled: scenario.calibrated
+                    model: [qsTr("Least squares through the log closes"), qsTr("As stated per underlying")]
+                    currentIndex: scenario.driftEstimator
+                    onActivated: function(index) { scenario.driftEstimator = index }
+                }
+            }
+
+            Field {
+                caption: qsTr("Implied premium")
+                fieldName: "implied_premium_basis_points"
+                unit: qsTr("bp")
+                enabled: scenario.calibrated
+                from: -1000000
+                to: 1000000
+                stepSize: 50
+                value: scenario.impliedPremiumBasisPoints
+                hint: qsTr("options are priced at the realised volatility plus ") + pane.percent(scenario.impliedPremiumBasisPoints)
+                offending: pane.offends("calibration.implied_premium_basis_points")
+                onEdited: function(value) { scenario.impliedPremiumBasisPoints = value }
+            }
+        }
+
+        Section {
+            Layout.margins: 8
+            Layout.topMargin: 0
             title: qsTr("Underlyings")
             blurb: qsTr("The names in the order collateral is offered to them. Spot and strike step in cents; rates in basis points a year.")
 

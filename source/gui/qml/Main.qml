@@ -100,6 +100,15 @@ ApplicationWindow {
             }
 
             Button {
+                objectName: "backtest"
+                text: qsTr("Backtest")
+                enabled: run.runnable && scenario.calibrated
+                onClicked: run.backtest()
+                ToolTip.visible: hovered
+                ToolTip.text: scenario.calibrated ? qsTr("Replay the price histories through the book, re-estimating every name at each cycle's opening") : qsTr("Switch calibration on in the scenario to replay price histories")
+            }
+
+            Button {
                 objectName: "cancel"
                 text: qsTr("Cancel")
                 enabled: run.running

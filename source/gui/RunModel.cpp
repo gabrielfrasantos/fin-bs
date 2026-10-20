@@ -1,5 +1,6 @@
 #include "source/gui/RunModel.hpp"
 #include "source/io/BrokerConfig.hpp"
+#include "source/io/PriceCsvLoader.hpp"
 #include "source/io/ReportWriter.hpp"
 #include "source/io/ScenarioLoader.hpp"
 #include "source/io/TaxConfig.hpp"
@@ -34,6 +35,22 @@ namespace fin::gui
             return QTextStream(&file).readAll().toStdString();
         }
 
+        std::vector<std::string> Lines(const QString& path)
+        {
+            QFile file(path);
+            std::vector<std::string> lines;
+
+            if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+                return lines;
+
+            QTextStream in(&file);
+
+            while (!in.atEnd())
+                lines.push_back(in.readLine().toStdString());
+
+            return lines;
+        }
+
         bool Wrote(const QString& path, const std::string& contents)
         {
             std::ofstream file(path.toStdString());
@@ -61,6 +78,7 @@ namespace fin::gui
         , cycles(new ResultTableModel(this))
         , ledger(new ResultTableModel(this))
         , summary(new ResultTableModel(this))
+        , calibration(new ResultTableModel(this))
         , chart(new ChartSeries(this))
         , status(tr("Ready"))
     {
@@ -119,6 +137,8 @@ namespace fin::gui
                 return QStringLiteral("projection");
             case present::RunKind::simulation:
                 return QStringLiteral("simulation");
+            case present::RunKind::backtest:
+                return QStringLiteral("backtest");
             case present::RunKind::search:
             default:
                 return QStringLiteral("search");
@@ -160,6 +180,11 @@ namespace fin::gui
         return summary;
     }
 
+    ResultTableModel* RunModel::Calibration()
+    {
+        return calibration;
+    }
+
     ChartSeries* RunModel::Chart()
     {
         return chart;
@@ -178,6 +203,11 @@ namespace fin::gui
     void RunModel::search()
     {
         Start(present::RunKind::search);
+    }
+
+    void RunModel::backtest()
+    {
+        Start(present::RunKind::backtest);
     }
 
     void RunModel::cancel()
@@ -217,12 +247,37 @@ namespace fin::gui
             return std::nullopt;
         }
 
+        std::vector<present::NamedHistory> histories;
+
+        if (prepared.calibration.has_value())
+            for (const auto& underlying : prepared.terms.underlyings)
+            {
+                const auto path = configurations + "/" + QString::fromStdString(prepared.calibration->priceHistories) + "/" + QString::fromStdString(underlying.underlying) + ".csv";
+
+                if (!QFile::exists(path))
+                {
+                    complaint = tr("No price history for %1 at %2").arg(QString::fromStdString(underlying.underlying), path);
+                    return std::nullopt;
+                }
+
+                const io::PriceCsvLoader loader(Lines(path), io::CurrencyOf(prepared), core::DayCountConvention::Act252);
+
+                if (!loader.Series().has_value())
+                {
+                    complaint = QString::fromStdString(underlying.underlying + ": " + loader.Failure());
+                    return std::nullopt;
+                }
+
+                histories.push_back(present::NamedHistory{ underlying.underlying, *loader.Series() });
+            }
+
         complaint.clear();
 
         return present::RunInputs{ .scenario = prepared,
             .fees = *fees.Schedule(),
             .taxes = *taxes.Parameters(),
-            .search = present::SearchAround(prepared, searchDrawdownBasisPoints, searchAssignmentBasisPoints, searchIterations) };
+            .search = present::SearchAround(prepared, searchDrawdownBasisPoints, searchAssignmentBasisPoints, searchIterations),
+            .histories = std::move(histories) };
     }
 
     void RunModel::Start(present::RunKind started)
@@ -304,6 +359,7 @@ namespace fin::gui
         cycles->Present(present::CycleTable({}));
         ledger->Present(present::ResultTable{ { "date", "kind", "amount" }, {} });
         summary->Present(present::ResultTable{ { "measure", "value" }, {} });
+        calibration->Present(present::CalibrationTable({}));
         chart->Present(present::TraceOf({}, {}));
         highlights.clear();
     }
@@ -312,6 +368,7 @@ namespace fin::gui
     {
         cycles->Present(present::CycleTable(outcome.rows));
         ledger->Present(present::LedgerTable(outcome.ledger));
+        calibration->Present(present::CalibrationTable(outcome.calibration));
         highlights.clear();
 
         if (outcome.distribution.has_value())

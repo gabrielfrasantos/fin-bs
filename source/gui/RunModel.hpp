@@ -31,6 +31,7 @@ namespace fin::gui
         Q_PROPERTY(fin::gui::ResultTableModel* cycles READ Cycles CONSTANT)
         Q_PROPERTY(fin::gui::ResultTableModel* ledger READ Ledger CONSTANT)
         Q_PROPERTY(fin::gui::ResultTableModel* summary READ Summary CONSTANT)
+        Q_PROPERTY(fin::gui::ResultTableModel* calibration READ Calibration CONSTANT)
         Q_PROPERTY(fin::gui::ChartSeries* chart READ Chart CONSTANT)
 
     public:
@@ -49,11 +50,13 @@ namespace fin::gui
         ResultTableModel* Cycles();
         ResultTableModel* Ledger();
         ResultTableModel* Summary();
+        ResultTableModel* Calibration();
         ChartSeries* Chart();
 
         Q_INVOKABLE void project();
         Q_INVOKABLE void simulate();
         Q_INVOKABLE void search();
+        Q_INVOKABLE void backtest();
         Q_INVOKABLE void cancel();
 
         void Start(present::RunKind kind);
@@ -83,6 +86,7 @@ namespace fin::gui
         ResultTableModel* cycles;
         ResultTableModel* ledger;
         ResultTableModel* summary;
+        ResultTableModel* calibration;
         ChartSeries* chart;
         QVariantList highlights;
         QString complaint;

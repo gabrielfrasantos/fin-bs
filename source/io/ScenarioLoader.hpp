@@ -2,6 +2,7 @@
 
 #include "source/core/Money.hpp"
 #include "source/sim/BookScript.hpp"
+#include "source/sim/Calibration.hpp"
 #include "source/strategy/RollRules.hpp"
 #include <cstdint>
 #include <optional>
@@ -10,6 +11,14 @@
 
 namespace fin::io
 {
+    struct Calibration
+    {
+        std::string priceHistories;
+        sim::CalibrationRule rule;
+
+        bool operator==(const Calibration& other) const = default;
+    };
+
     struct Scenario
     {
         std::string name;
@@ -22,6 +31,7 @@ namespace fin::io
         std::uint64_t seed;
         std::string taxConfiguration;
         std::string brokerConfiguration;
+        std::optional<Calibration> calibration;
 
         bool operator==(const Scenario& other) const = default;
     };

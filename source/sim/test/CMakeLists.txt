@@ -10,8 +10,10 @@ target_link_libraries(fin.sim_test PUBLIC
 target_sources(fin.sim_test PRIVATE
     TestBookMonteCarlo.cpp
     TestBookScript.cpp
+    TestCalibration.cpp
     TestConvergence.cpp
     TestGbmPathGenerator.cpp
+    TestHistoricalPath.cpp
     TestMonteCarlo.cpp
     TestOutcomeDistribution.cpp
     TestRng.cpp

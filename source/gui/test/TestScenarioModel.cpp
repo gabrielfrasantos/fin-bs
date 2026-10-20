@@ -41,6 +41,49 @@ private slots:
         QCOMPARE(model.Document().Fields().capitalCents, 12345600);
     }
 
+    void switching_calibration_on_reaches_the_document_with_the_estimators_by_index()
+    {
+        fin::gui::ScenarioModel model;
+
+        QCOMPARE(model.Calibrated(), false);
+        QCOMPARE(model.Document().Fields().calibrated, false);
+
+        model.SetCalibrated(true);
+        model.SetPriceHistories("../data/prices");
+        model.SetWindowObservations(120);
+        model.SetVolatilityEstimator(1);
+        model.SetHalfLifeObservations(30);
+        model.SetDriftEstimator(1);
+        model.SetImpliedPremiumBasisPoints(-50);
+
+        const auto& fields = model.Document().Fields();
+
+        QCOMPARE(fields.calibrated, true);
+        QCOMPARE(QString::fromStdString(fields.priceHistories), QString("../data/prices"));
+        QCOMPARE(fields.windowObservations, 120);
+        QVERIFY(fields.volatilityEstimator == fin::sim::VolatilityEstimator::exponentiallyWeighted);
+        QCOMPARE(fields.halfLifeObservations, 30);
+        QVERIFY(fields.driftEstimator == fin::sim::DriftEstimator::stated);
+        QCOMPARE(fields.impliedPremiumBasisPoints, -50);
+        QCOMPARE(model.VolatilityEstimator(), 1);
+        QCOMPARE(model.DriftEstimator(), 1);
+    }
+
+    void a_half_life_longer_than_the_window_is_named_rather_than_silently_clamped()
+    {
+        fin::gui::ScenarioModel model;
+
+        model.SetCalibrated(true);
+        model.SetHalfLifeObservations(model.WindowObservations() + 1);
+
+        QCOMPARE(model.WellFormed(), false);
+        QCOMPARE(model.OffendingField(), QString("calibration.half_life_observations"));
+
+        model.SetCalibrated(false);
+
+        QCOMPARE(model.OffendingField(), QString("underlyings"));
+    }
+
     void a_field_outside_its_range_is_named_rather_than_silently_clamped()
     {
         fin::gui::ScenarioModel model;

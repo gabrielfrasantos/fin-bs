@@ -55,6 +55,7 @@ does not have. The layer is arranged so that each of these is either impossible 
 | An annual reference date that exists in every year | a rule that skips leap years is a rule nobody stated |
 | A projection that has not yet been run | a run that starts from a used projection is not a run of the strategy described |
 | At least one path | a distribution over nothing has no percentile |
+| For a backtest, a history per name that holds a close on or before every scheduled date, and the window the rule asks for before every opening | a day the history does not reach cannot be replayed, and an estimate from fewer closes than the rule states is not the rule |
 
 Each of these is a precondition, checked where it is stated and stopping the run when broken.
 
@@ -92,6 +93,17 @@ Each of these is a precondition, checked where it is stated and stopping the run
 - **A percentile is an outcome that occurred.** It is the outcome at a rank, so the growth rate, the
   drawdown and the assignment count reported at a percentile all belong to one path.
 
+### Replaying a history
+
+A backtest is a projection whose paths are not drawn but read: for each name the closes on the
+schedule's dates, the last close before a date the market was shut on. The terms of each cycle come
+from the calibration rule applied at that cycle's opening to the closes strictly before it
+([decision D55](decisions.md), [calibration](../theory/calibration.md)); the book, the service order,
+the cap, the fees and the tax are exactly those of a projection, so a backtest and a projection of
+the same scenario differ only in where the prices and the terms come from. A forward run of a
+scenario with a rule takes its terms once, at the start ([decision D56](decisions.md)). The estimates
+a run used are part of its result.
+
 ### What cannot be expressed
 
 - **A run without a seed.** There is no way to ask for randomness the caller did not supply a seed
@@ -116,6 +128,10 @@ Each of these is a precondition, checked where it is stated and stopping the run
   is borrowed, repaid from the next receipts at the broker's debit rate, and the distribution reports
   the share of paths that borrowed ([D50](decisions.md)). The cash buffer is the lever that keeps
   that share small.
+- A backtest's spot is the history's close on the start date, not the scenario's `spot_cents`; the
+  stated spot is what a forward run opens at.
+- A schedule date the market was shut on replays the previous close, so an expiry on a Sunday settles
+  at Friday's price and an assessment on 1 January at the last close of the old year.
 - Percentiles of a small run are coarse. With $N$ paths there are only $N$ distinct answers, and the
   5th and 50th percentile of twenty paths are frequently the same one.
 

@@ -225,6 +225,9 @@ number is worth.
 | Debit interest on the opening balance | a balance borrowed to pay a charge is charged for the whole cycle at the rate configured, which is unconfirmed |
 | Dividends accrued, not paid on ex-dates | a share held for part of a cycle earns nothing; the credit of domestic withholding against the charge is not modelled |
 | One implied volatility per underlying, no bid-ask | the premium is the model's value at that figure; a fill at the bid would be lower |
+| A calibrated drift from a year of closes | its error is of the order of the volatility itself, so a forward run on it can be far from the stated figure; `stated` keeps the owner's drift |
+| A backtest of two years of unadjusted closes | one year of replay after a one-year window, over names chosen in 2026 knowing they were still listed; a split or a return of capital would be read as a move |
+| Closes carried forward over shut days | a scheduled date without a close settles at the previous one |
 
 ## References
 

@@ -82,6 +82,8 @@ one day reverse.
   logarithm, fitting the slope, and how little the answer is known.
 - [Exponentially weighted volatility](theory/exponentially-weighted-volatility.md) - smoothing
   factors, half-lives, forgetting factors, and the trade between responsiveness and precision.
+- [Calibration from a price history](theory/calibration.md) - the window, the estimators, the
+  implied premium, what a backtest may look at, and why the drift is the loud figure.
 - [Broker costs](theory/broker-costs.md) - charges per contract, per transaction and in proportion to
   a portfolio, with a ceiling, and why the ceiling matters.
 - [Currency conversion](theory/currency-conversion.md) - the base currency, the spot rate, the
@@ -113,3 +115,5 @@ one day reverse.
 - [BENELUX option candidates](research/benelux-option-candidates.md) - ten Euronext Amsterdam and
   Brussels names screened for option liquidity, share price against the capital, and sector spread,
   with the scenario figures derived from them.
+- [BENELUX backtest](research/benelux-backtest.md) - the ten names replayed over the year to
+  2026-10-19 with the terms re-estimated at every opening, against the simulation's expectation.

@@ -17,6 +17,7 @@ history of what a rate used to be is what makes an old projection reproducible.
 | Dividend withholding tax (dividendbelasting) | 15% | Dutch dividends; used as the rate at which foreign withholding is creditable | **not yet confirmed against the issuing body's own page** - the rate is long-standing and uncontroversial, but no Belastingdienst page has been read for it | - | - |
 | Imputed return on debts | 2.70% per year | Box 3, tax year 2025 | <https://www.belastingdienst.nl/wps/wcm/connect/nl/box-3/content/berekening-box-3-inkomen-2025> | 2026-08-11 | project |
 | Debit interest | 6.90% per year | DEGIRO Basic account, a balance owed in EUR | **not yet confirmed** - a placeholder of the right order of magnitude; to be read from the full tariff document at <https://www.degiro.nl/data/pdf/Tarievenoverzicht.pdf> | - | - |
+| Daily closes of the ten BENELUX names | `data/prices/*.csv`, 2024-10-21 to 2026-10-19, unadjusted | the BENELUX backtest and the calibration of `benelux.json` | <https://live.euronext.com/> historical-price download per ISIN and market, fetched with `tools/fetch_prices.py` | 2026-10-20 | project |
 
 ⚠️ The option contract charge is the single most influential cost in this project - a wheel strategy
 pays it on every leg of every cycle - and it is one of three figures above that have **not** been

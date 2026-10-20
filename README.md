@@ -53,9 +53,10 @@ network access.
 
 ```
 config/              tax, broker and scenario configuration (no rates in code)
-data/                user-provided price history and options-chain snapshots
+data/                price histories (date,close per ticker) and the golden run tables
 source/              the project, one CMake target per module (fin.core, fin.pricing, ...)
-documentation/       design notes, theory notes, and the validation log
+documentation/       design notes, theory notes, research notes and the validation log
+tools/               fetch_prices.py, which writes data/prices from Euronext's history download
 ```
 
 Each module carries its own `test/` directory; tests are GoogleTest and run on the host.

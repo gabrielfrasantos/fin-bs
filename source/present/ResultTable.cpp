@@ -147,4 +147,20 @@ namespace fin::present
 
         return table;
     }
+
+    ResultTable CalibrationTable(std::span<const CalibrationRow> rows)
+    {
+        ResultTable table{ { "cycle", "underlying", "window end", "closes", "drift", "volatility", "implied" }, {} };
+
+        for (const auto& entry : rows)
+            table.rows.push_back({ std::to_string(entry.cycle + 1),
+                entry.underlying,
+                TextOf(entry.estimate.windowEnd),
+                std::to_string(entry.estimate.observations),
+                PercentageOf(entry.estimate.drift.Continuous()),
+                PercentageOf(entry.estimate.volatility.Annualized()),
+                PercentageOf(entry.estimate.impliedVolatility.Annualized()) });
+
+        return table;
+    }
 }
