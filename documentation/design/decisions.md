@@ -1254,3 +1254,22 @@ Qt Quick gives layout, theming and animation that Widgets make laborious, withou
 model. The cost is a second toolchain concern (QML files compiled into the binary, a software
 renderer for tests without a display), which the build and the tests carry.
 
+## D54 - A name may reserve at most a stated share of the book's opening equity (2026-10-19)
+
+A scenario states `max_collateral_per_name_basis_points`, and a wheel writing puts in a book takes
+at most as many contracts as keep its collateral (strike times the multiplier times the contracts)
+at or under that share of the book's equity at the cycle's opening: the balance plus the shares
+every name holds, marked at the spot of that opening. The order of service (D43) is unchanged; the
+cap only limits what the name served first may take, so the names after it see what is left. A
+name holding shares writes covered calls and reserves nothing new, so the cap binds only on puts.
+Ten thousand basis points is the book as it was: the example scenario states it and its golden
+projection is unchanged.
+
+Why: run on the ten BENELUX names, the richest-premium-first rule gave one airline nearly the whole
+pot, and a book of ten was in effect a book of one. A cap per name is the smallest rule that keeps
+the service order's logic (the best premium per unit of collateral goes first) while making the
+list of names mean something. The base is equity at the cycle's opening rather than the starting
+capital, so that the cap compounds with the book, and rather than cash alone, so that a name sitting
+in shares still counts toward the whole. The period therefore carries the spot at its opening, which
+the simulation already read to choose the strike.
+

@@ -82,6 +82,7 @@ namespace fin::sim
 
         strategy::ProjectionPeriod period{ .opened = opened,
             .expiry = expiry,
+            .spotAtOpen = spot,
             .strike = strike,
             .premiumPerShare = pricing::BlackScholes(Written(spot, strike, terms, type, timeToExpiry), terms.impliedVolatility).Price(),
             .spotAtExpiry = PriceOn(path, expiry),

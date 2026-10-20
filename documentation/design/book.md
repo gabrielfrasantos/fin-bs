@@ -52,6 +52,9 @@ shared is the state of each wheel. Naming that split is most of the design.
   be replaced without touching the book.
 - **The order of the book is meaningful.** It breaks ties between equally attractive claims.
   Reordering the list is a change to the strategy.
+- **No name takes more than its stated share.** A scenario states the largest share of the book's
+  opening equity one name may reserve as collateral; the name served first takes at most that, and
+  the rest is left for the names after it. Stated as the whole book, the cap changes nothing.
 - **One assessment, one allowance.** The wealth tax is computed from the whole book and posted once.
 - **The record still explains the balance.** The opening balance plus every posted cashflow equals
   the balance at any moment, with any number of wheels running.

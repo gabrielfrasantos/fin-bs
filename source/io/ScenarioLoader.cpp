@@ -186,6 +186,7 @@ namespace fin::io
                 .name = TextAt(navigator, "scenario"),
                 .capital = AmountAt(navigator, "capital_cents", currency, 1),
                 .cashBufferBasisPoints = IntegerAt(navigator, "cash_buffer_basis_points", 0, basisPointsPerUnit),
+                .maxCollateralPerNameBasisPoints = IntegerAt(navigator, "max_collateral_per_name_basis_points", 1, basisPointsPerUnit),
                 .triggers = strategy::RollTriggers{
                     .daysToExpiry = IntegerAt(navigator, "roll_days_to_expiry", 0, mostDaysPerCycle),
                     .profitCaptureBasisPoints = IntegerAt(navigator, "roll_profit_capture_basis_points", 1, basisPointsPerUnit),
@@ -244,6 +245,9 @@ namespace fin::io
         if (scenario.cashBufferBasisPoints < 0 || scenario.cashBufferBasisPoints > basisPointsPerUnit)
             return false;
 
+        if (scenario.maxCollateralPerNameBasisPoints < 1 || scenario.maxCollateralPerNameBasisPoints > basisPointsPerUnit)
+            return false;
+
         for (const auto& underlying : scenario.terms.underlyings)
             if (underlying.initialPrice.GetCurrency() != scenario.capital.GetCurrency() || underlying.strikeIncrement.GetCurrency() != scenario.capital.GetCurrency())
                 return false;
@@ -274,6 +278,7 @@ namespace fin::io
             formatter.Add("observation_days_before_expiry", scenario.terms.observationDaysBeforeExpiry);
             formatter.Add("target_delta_basis_points", BasisPointsOf(scenario.terms.targetDelta.Value()));
             formatter.Add("cash_buffer_basis_points", scenario.cashBufferBasisPoints);
+            formatter.Add("max_collateral_per_name_basis_points", scenario.maxCollateralPerNameBasisPoints);
             formatter.Add("roll_delta_limit_basis_points", BasisPointsOf(scenario.triggers.deltaLimit.Value()));
             formatter.Add("roll_days_to_expiry", scenario.triggers.daysToExpiry);
             formatter.Add("roll_profit_capture_basis_points", scenario.triggers.profitCaptureBasisPoints);

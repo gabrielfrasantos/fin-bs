@@ -47,6 +47,7 @@ namespace fin::present::test
         return io::Scenario{ .name = "Two names over two cycles",
             .capital = Euro(200000.00),
             .cashBufferBasisPoints = 500,
+            .maxCollateralPerNameBasisPoints = 10000,
             .triggers = strategy::RollTriggers{ .daysToExpiry = 7, .profitCaptureBasisPoints = 8000, .deltaLimit = core::Delta::FromValue(0.50) },
             .terms = sim::BookTerms{ .start = core::Date::FromYearMonthDay(2026, 1, 5),
                 .cycles = 2,

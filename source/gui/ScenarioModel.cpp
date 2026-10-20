@@ -179,6 +179,19 @@ namespace fin::gui
             });
     }
 
+    int ScenarioModel::MaxCollateralPerNameBasisPoints() const
+    {
+        return document.Fields().maxCollateralPerNameBasisPoints;
+    }
+
+    void ScenarioModel::SetMaxCollateralPerNameBasisPoints(int basisPoints)
+    {
+        Amend([&](present::ScenarioFields& fields)
+            {
+                fields.maxCollateralPerNameBasisPoints = basisPoints;
+            });
+    }
+
     int ScenarioModel::RollDeltaLimitBasisPoints() const
     {
         return document.Fields().rollDeltaLimitBasisPoints;

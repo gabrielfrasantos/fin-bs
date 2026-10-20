@@ -125,6 +125,10 @@ And the covered call in cycle 2 was written before BETA was even asked, because 
   the most volatile underlying — which is also the one most likely to be assigned. Serving the
   richest premium first therefore concentrates the book in its riskiest name. This is a property of
   the rule, not an accident of it, and it is why the rule is stated separately from everything else.
+  The cap per name is the lever against it: with a cap of $c$ (a fraction of the book's equity at
+  the cycle's opening, $E_0$) a name writing puts at strike $K$ takes at most
+  $\lfloor c \, E_0 / (100 K) \rfloor$ contracts, whatever the balance would afford, and the next
+  name is served from what remains. A cap of one is the book as described above.
 - **Independence.** Underlyings are drawn independently. Real equities fall together, so every
   drawdown and every assignment rate a book reports is optimistic, and a book of many names will
   look far safer than it is.

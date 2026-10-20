@@ -17,6 +17,7 @@ namespace fin::optimize
     {
         strategy::Portfolio start;
         strategy::RollTriggers triggers;
+        std::int32_t maxCollateralPerNameBasisPoints;
         costs::BrokerFees fees;
         tax::Box3TaxModel taxes;
         sim::BookTerms terms;

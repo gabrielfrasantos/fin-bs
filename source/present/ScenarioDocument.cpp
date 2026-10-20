@@ -59,6 +59,7 @@ namespace fin::present
                 .observationDaysBeforeExpiry = 14,
                 .targetDeltaBasisPoints = 3000,
                 .cashBufferBasisPoints = 500,
+                .maxCollateralPerNameBasisPoints = 10000,
                 .rollDeltaLimitBasisPoints = 5000,
                 .rollDaysToExpiry = 7,
                 .rollProfitCaptureBasisPoints = 8000,
@@ -85,6 +86,7 @@ namespace fin::present
               .observationDaysBeforeExpiry = scenario.terms.observationDaysBeforeExpiry,
               .targetDeltaBasisPoints = BasisPointsOf(scenario.terms.targetDelta.Value()),
               .cashBufferBasisPoints = scenario.cashBufferBasisPoints,
+              .maxCollateralPerNameBasisPoints = scenario.maxCollateralPerNameBasisPoints,
               .rollDeltaLimitBasisPoints = BasisPointsOf(scenario.triggers.deltaLimit.Value()),
               .rollDaysToExpiry = scenario.triggers.daysToExpiry,
               .rollProfitCaptureBasisPoints = scenario.triggers.profitCaptureBasisPoints,
@@ -180,6 +182,9 @@ namespace fin::present
         if (auto fault = Outside("cash_buffer_basis_points", fields.cashBufferBasisPoints, 0, basisPointsPerUnit))
             return fault;
 
+        if (auto fault = Outside("max_collateral_per_name_basis_points", fields.maxCollateralPerNameBasisPoints, 1, basisPointsPerUnit))
+            return fault;
+
         if (auto fault = Outside("roll_delta_limit_basis_points", fields.rollDeltaLimitBasisPoints, 1, basisPointsPerUnit))
             return fault;
 
@@ -271,6 +276,7 @@ namespace fin::present
         return io::Scenario{ .name = fields.name,
             .capital = core::Money::FromCents(fields.capitalCents, fields.currency),
             .cashBufferBasisPoints = fields.cashBufferBasisPoints,
+            .maxCollateralPerNameBasisPoints = fields.maxCollateralPerNameBasisPoints,
             .triggers = strategy::RollTriggers{ .daysToExpiry = fields.rollDaysToExpiry,
                 .profitCaptureBasisPoints = fields.rollProfitCaptureBasisPoints,
                 .deltaLimit = core::Delta::FromValue(FractionOf(fields.rollDeltaLimitBasisPoints)) },

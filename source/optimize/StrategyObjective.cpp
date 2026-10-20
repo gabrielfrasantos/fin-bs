@@ -58,7 +58,7 @@ namespace fin::optimize
         triggers.deltaLimit = setting.rollDeltaLimit;
 
         const sim::BookScript script(terms);
-        const strategy::Book book(script.Underlyings(), experiment.start, strategy::ReinvestmentPolicy::WithCashBuffer(setting.cashBufferBasisPoints), strategy::RollRules(triggers), experiment.fees, experiment.taxes);
+        const strategy::Book book(script.Underlyings(), experiment.start, strategy::ReinvestmentPolicy::WithCashBufferAndCap(setting.cashBufferBasisPoints, experiment.maxCollateralPerNameBasisPoints), strategy::RollRules(triggers), experiment.fees, experiment.taxes);
         const sim::BookMonteCarlo simulation(book, script, MarketsOf(terms));
         sim::Rng rng(experiment.seed);
 

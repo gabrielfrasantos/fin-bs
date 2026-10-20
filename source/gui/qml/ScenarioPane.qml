@@ -161,6 +161,19 @@ ScrollView {
             }
 
             Field {
+                caption: qsTr("Collateral cap per name")
+                fieldName: "max_collateral_per_name_basis_points"
+                unit: qsTr("bp")
+                from: 1
+                to: 1000000
+                stepSize: 100
+                value: scenario.maxCollateralPerNameBasisPoints
+                hint: "= " + pane.percent(scenario.maxCollateralPerNameBasisPoints) + qsTr(" of the book's equity at a cycle's opening, per name")
+                offending: pane.offends("max_collateral_per_name_basis_points")
+                onEdited: function(value) { scenario.maxCollateralPerNameBasisPoints = value }
+            }
+
+            Field {
                 caption: qsTr("Roll when delta reaches")
                 fieldName: "roll_delta_limit_basis_points"
                 unit: qsTr("bp")

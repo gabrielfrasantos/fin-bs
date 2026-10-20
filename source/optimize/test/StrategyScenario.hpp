@@ -35,6 +35,7 @@ namespace fin::optimize::test
     {
         return { .start = strategy::Portfolio::Funded(Euro(200000.00)),
             .triggers = { .daysToExpiry = 7, .profitCaptureBasisPoints = 8000, .deltaLimit = core::Delta::FromValue(0.60) },
+            .maxCollateralPerNameBasisPoints = 10000,
             .fees = costs::BrokerFees(costs::FeeSchedule{ .optionFeePerContract = Euro(0.75),
                 .shareCommissionPerTrade = Euro(2.00),
                 .handlingFeePerTrade = Euro(1.00),

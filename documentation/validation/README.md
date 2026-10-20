@@ -41,7 +41,9 @@ states every assumption of the chain at once, and it collects the known limits i
       [D45](../design/decisions.md).
 - [ ] **Understand that collateral goes to the richest premium first.** That is a rule, not an
       optimum, and it concentrates a book in whatever is most volatile - which is also whatever is
-      most likely to be assigned. See [D43](../design/decisions.md).
+      most likely to be assigned. The cap per name ([D54](../design/decisions.md)) bounds how far
+      that goes; set it, and check that the cycle table spreads contracts over the names you
+      listed. See [D43](../design/decisions.md).
 
 ## Already settled
 
@@ -60,7 +62,7 @@ states every assumption of the chain at once, and it collects the known limits i
 | Price process | geometric Brownian motion, sampled exactly on the dates read | [theory](../theory/monte-carlo-simulation.md), [D31](../design/decisions.md) |
 | Reported percentiles | an outcome at a rank, never an interpolation between two | [theory](../theory/monte-carlo-simulation.md), [D35](../design/decisions.md) |
 | Borrowing | not modelled; wealth is non-negative | [D29](../design/decisions.md) |
-| Sharing capital | one pot, richest premium per unit of collateral served first, ties by listed order | [theory](../theory/running-several-wheels-at-once.md), [D43](../design/decisions.md) |
+| Sharing capital | one pot, richest premium per unit of collateral served first, ties by listed order, each name capped at a stated share of the opening equity | [theory](../theory/running-several-wheels-at-once.md), [D43](../design/decisions.md), [D54](../design/decisions.md) |
 | Taxing a book | struck once on the whole book, at a cycle boundary, allowance granted once | [design](../design/book.md), [D44](../design/decisions.md) |
 | Assignment rate | measured per option written, not per cycle | [D46](../design/decisions.md) |
 | Reading a close | rounded to the nearest minor unit, ties to even, never refused | [design](../design/io.md), [D47](../design/decisions.md) |

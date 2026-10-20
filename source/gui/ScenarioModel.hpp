@@ -24,6 +24,7 @@ namespace fin::gui
         Q_PROPERTY(int observationDaysBeforeExpiry READ ObservationDaysBeforeExpiry WRITE SetObservationDaysBeforeExpiry NOTIFY changed)
         Q_PROPERTY(int targetDeltaBasisPoints READ TargetDeltaBasisPoints WRITE SetTargetDeltaBasisPoints NOTIFY changed)
         Q_PROPERTY(int cashBufferBasisPoints READ CashBufferBasisPoints WRITE SetCashBufferBasisPoints NOTIFY changed)
+        Q_PROPERTY(int maxCollateralPerNameBasisPoints READ MaxCollateralPerNameBasisPoints WRITE SetMaxCollateralPerNameBasisPoints NOTIFY changed)
         Q_PROPERTY(int rollDeltaLimitBasisPoints READ RollDeltaLimitBasisPoints WRITE SetRollDeltaLimitBasisPoints NOTIFY changed)
         Q_PROPERTY(int rollDaysToExpiry READ RollDaysToExpiry WRITE SetRollDaysToExpiry NOTIFY changed)
         Q_PROPERTY(int rollProfitCaptureBasisPoints READ RollProfitCaptureBasisPoints WRITE SetRollProfitCaptureBasisPoints NOTIFY changed)
@@ -64,6 +65,8 @@ namespace fin::gui
         void SetTargetDeltaBasisPoints(int basisPoints);
         int CashBufferBasisPoints() const;
         void SetCashBufferBasisPoints(int basisPoints);
+        int MaxCollateralPerNameBasisPoints() const;
+        void SetMaxCollateralPerNameBasisPoints(int basisPoints);
         int RollDeltaLimitBasisPoints() const;
         void SetRollDeltaLimitBasisPoints(int basisPoints);
         int RollDaysToExpiry() const;

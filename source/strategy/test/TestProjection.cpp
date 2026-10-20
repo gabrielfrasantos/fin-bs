@@ -99,12 +99,12 @@ namespace
         }
 
         std::vector<ProjectionPeriod> periods{
-            { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .strike = Euro(40.00), .premiumPerShare = 0.80, .spotAtExpiry = Euro(45.00), .observed = std::nullopt, .assessed = std::nullopt },
-            { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .strike = Euro(44.00), .premiumPerShare = 0.90, .spotAtExpiry = Euro(40.00), .observed = std::nullopt, .assessed = std::nullopt },
-            { .opened = On(2026, 1, 16), .expiry = On(2026, 7, 17), .strike = Euro(46.00), .premiumPerShare = 1.10, .spotAtExpiry = Euro(48.00), .observed = std::nullopt, .assessed = std::nullopt },
-            { .opened = On(2026, 7, 17), .expiry = On(2027, 1, 15), .strike = Euro(48.00), .premiumPerShare = 1.20, .spotAtExpiry = Euro(52.00), .observed = std::nullopt, .assessed = std::nullopt },
-            { .opened = On(2027, 1, 15), .expiry = On(2027, 7, 16), .strike = Euro(52.00), .premiumPerShare = 1.30, .spotAtExpiry = Euro(50.00), .observed = std::nullopt, .assessed = std::nullopt },
-            { .opened = On(2027, 7, 16), .expiry = On(2028, 1, 14), .strike = Euro(54.00), .premiumPerShare = 1.40, .spotAtExpiry = Euro(53.00), .observed = std::nullopt, .assessed = std::nullopt }
+            { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .spotAtOpen = Euro(40.00), .strike = Euro(40.00), .premiumPerShare = 0.80, .spotAtExpiry = Euro(45.00), .observed = std::nullopt, .assessed = std::nullopt },
+            { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .spotAtOpen = Euro(44.00), .strike = Euro(44.00), .premiumPerShare = 0.90, .spotAtExpiry = Euro(40.00), .observed = std::nullopt, .assessed = std::nullopt },
+            { .opened = On(2026, 1, 16), .expiry = On(2026, 7, 17), .spotAtOpen = Euro(46.00), .strike = Euro(46.00), .premiumPerShare = 1.10, .spotAtExpiry = Euro(48.00), .observed = std::nullopt, .assessed = std::nullopt },
+            { .opened = On(2026, 7, 17), .expiry = On(2027, 1, 15), .spotAtOpen = Euro(48.00), .strike = Euro(48.00), .premiumPerShare = 1.20, .spotAtExpiry = Euro(52.00), .observed = std::nullopt, .assessed = std::nullopt },
+            { .opened = On(2027, 1, 15), .expiry = On(2027, 7, 16), .spotAtOpen = Euro(52.00), .strike = Euro(52.00), .premiumPerShare = 1.30, .spotAtExpiry = Euro(50.00), .observed = std::nullopt, .assessed = std::nullopt },
+            { .opened = On(2027, 7, 16), .expiry = On(2028, 1, 14), .spotAtOpen = Euro(54.00), .strike = Euro(54.00), .premiumPerShare = 1.40, .spotAtExpiry = Euro(53.00), .observed = std::nullopt, .assessed = std::nullopt }
         };
 
         Money capital{ Euro(10000.00) };
@@ -263,7 +263,7 @@ TEST_F(TestProjection, a_period_that_cannot_secure_a_single_contract_does_nothin
 {
     auto wheel = Wheel(Euro(1000.00), fullyInvested, NeverRolls());
     const std::vector<ProjectionPeriod> periods{
-        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .strike = Euro(40.00), .premiumPerShare = 0.80, .spotAtExpiry = Euro(35.00), .observed = std::nullopt, .assessed = std::nullopt }
+        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .spotAtOpen = Euro(40.00), .strike = Euro(40.00), .premiumPerShare = 0.80, .spotAtExpiry = Euro(35.00), .observed = std::nullopt, .assessed = std::nullopt }
     };
 
     const auto rows = wheel.Over(periods);
@@ -279,7 +279,7 @@ TEST_F(TestProjection, a_period_that_cannot_secure_a_single_contract_does_nothin
 TEST_F(TestProjection, the_cash_buffer_costs_the_contract_it_would_have_paid_for)
 {
     const std::vector<ProjectionPeriod> periods{
-        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .strike = Euro(45.00), .premiumPerShare = 0.80, .spotAtExpiry = Euro(50.00), .observed = std::nullopt, .assessed = std::nullopt }
+        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .spotAtOpen = Euro(45.00), .strike = Euro(45.00), .premiumPerShare = 0.80, .spotAtExpiry = Euro(50.00), .observed = std::nullopt, .assessed = std::nullopt }
     };
 
     auto committed = Wheel(Euro(10000.00), fullyInvested, NeverRolls());
@@ -293,7 +293,7 @@ TEST_F(TestProjection, a_position_that_was_rolled_away_cannot_be_assigned)
 {
     auto wheel = Wheel(Euro(10000.00), fullyInvested, RollsOnHalfTheProfit());
     const std::vector<ProjectionPeriod> periods{
-        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .strike = Euro(40.00), .premiumPerShare = 0.80, .spotAtExpiry = Euro(35.00), .observed = RollObservation{ .on = On(2025, 6, 18), .valuePerShare = 0.20, .delta = Delta::FromValue(-0.20) }, .assessed = std::nullopt }
+        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .spotAtOpen = Euro(40.00), .strike = Euro(40.00), .premiumPerShare = 0.80, .spotAtExpiry = Euro(35.00), .observed = RollObservation{ .on = On(2025, 6, 18), .valuePerShare = 0.20, .delta = Delta::FromValue(-0.20) }, .assessed = std::nullopt }
     };
 
     const auto rows = wheel.Over(periods);
@@ -311,7 +311,7 @@ TEST_F(TestProjection, a_position_the_rules_leave_alone_runs_to_expiry_and_is_as
 {
     auto wheel = Wheel(Euro(10000.00), fullyInvested, RollsOnHalfTheProfit());
     const std::vector<ProjectionPeriod> periods{
-        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .strike = Euro(40.00), .premiumPerShare = 0.80, .spotAtExpiry = Euro(35.00), .observed = RollObservation{ .on = On(2025, 6, 18), .valuePerShare = 0.70, .delta = Delta::FromValue(-0.20) }, .assessed = std::nullopt }
+        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .spotAtOpen = Euro(40.00), .strike = Euro(40.00), .premiumPerShare = 0.80, .spotAtExpiry = Euro(35.00), .observed = RollObservation{ .on = On(2025, 6, 18), .valuePerShare = 0.70, .delta = Delta::FromValue(-0.20) }, .assessed = std::nullopt }
     };
 
     const auto rows = wheel.Over(periods);
@@ -329,7 +329,7 @@ TEST_F(TestProjection, a_portfolio_that_already_holds_shares_starts_by_writing_c
 
     Projection wheel("ACME", holder, fullyInvested, NeverRolls(), Fees(), Rules());
     const std::vector<ProjectionPeriod> periods{
-        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .strike = Euro(12.00), .premiumPerShare = 0.50, .spotAtExpiry = Euro(11.00), .observed = std::nullopt, .assessed = std::nullopt }
+        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .spotAtOpen = Euro(12.00), .strike = Euro(12.00), .premiumPerShare = 0.50, .spotAtExpiry = Euro(11.00), .observed = std::nullopt, .assessed = std::nullopt }
     };
 
     const auto rows = wheel.Over(periods);
@@ -364,7 +364,7 @@ TEST_F(TestProjection, the_annual_charge_falls_on_what_is_held_on_the_reference_
 {
     auto wheel = Wheel(Euro(200000.00), fullyInvested, NeverRolls());
     const std::vector<ProjectionPeriod> periods{
-        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .strike = Euro(40.00), .premiumPerShare = 1.00, .spotAtExpiry = Euro(45.00), .observed = std::nullopt, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(50.00) } }
+        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .spotAtOpen = Euro(40.00), .strike = Euro(40.00), .premiumPerShare = 1.00, .spotAtExpiry = Euro(45.00), .observed = std::nullopt, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(50.00) } }
     };
 
     const auto rows = wheel.Over(periods);
@@ -381,7 +381,7 @@ TEST_F(TestProjection, the_annual_charge_is_dated_on_the_reference_date_and_not_
 {
     auto wheel = Wheel(Euro(200000.00), fullyInvested, NeverRolls());
     const std::vector<ProjectionPeriod> periods{
-        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .strike = Euro(40.00), .premiumPerShare = 1.00, .spotAtExpiry = Euro(45.00), .observed = std::nullopt, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(50.00) } }
+        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .spotAtOpen = Euro(40.00), .strike = Euro(40.00), .premiumPerShare = 1.00, .spotAtExpiry = Euro(45.00), .observed = std::nullopt, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(50.00) } }
     };
 
     wheel.Over(periods);
@@ -400,7 +400,7 @@ TEST_F(TestProjection, the_ledger_still_reconciles_once_the_tax_has_been_struck)
 {
     auto wheel = Wheel(Euro(200000.00), fullyInvested, NeverRolls());
     const std::vector<ProjectionPeriod> periods{
-        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .strike = Euro(40.00), .premiumPerShare = 1.00, .spotAtExpiry = Euro(45.00), .observed = std::nullopt, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(50.00) } }
+        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .spotAtOpen = Euro(40.00), .strike = Euro(40.00), .premiumPerShare = 1.00, .spotAtExpiry = Euro(45.00), .observed = std::nullopt, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(50.00) } }
     };
 
     wheel.Over(periods);
@@ -413,7 +413,7 @@ TEST_F(TestProjection, a_portfolio_below_the_allowance_pays_no_tax_however_much_
 {
     auto wheel = Wheel(Euro(40000.00), fullyInvested, NeverRolls());
     const std::vector<ProjectionPeriod> periods{
-        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .strike = Euro(40.00), .premiumPerShare = 5.00, .spotAtExpiry = Euro(45.00), .observed = std::nullopt, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(50.00) } }
+        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .spotAtOpen = Euro(40.00), .strike = Euro(40.00), .premiumPerShare = 5.00, .spotAtExpiry = Euro(45.00), .observed = std::nullopt, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(50.00) } }
     };
 
     const auto rows = wheel.Over(periods);
@@ -427,7 +427,7 @@ TEST_F(TestProjection, a_reference_date_the_projection_reaches_without_a_positio
 {
     auto wheel = Wheel(Euro(200000.00), fullyInvested, NeverRolls());
     const std::vector<ProjectionPeriod> periods{
-        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .strike = Euro(400000.00), .premiumPerShare = 1.00, .spotAtExpiry = Euro(450000.00), .observed = std::nullopt, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(500000.00) } }
+        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .spotAtOpen = Euro(400000.00), .strike = Euro(400000.00), .premiumPerShare = 1.00, .spotAtExpiry = Euro(450000.00), .observed = std::nullopt, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(500000.00) } }
     };
 
     const auto rows = wheel.Over(periods);
@@ -440,10 +440,10 @@ TEST_F(TestProjection, a_reference_date_the_projection_reaches_without_a_positio
 TEST_F(TestProjection, a_position_closed_before_the_reference_date_is_not_part_of_what_is_taxed)
 {
     const std::vector<ProjectionPeriod> rolled{
-        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .strike = Euro(40.00), .premiumPerShare = 1.00, .spotAtExpiry = Euro(35.00), .observed = RollObservation{ .on = On(2025, 12, 15), .valuePerShare = 0.20, .delta = Delta::FromValue(-0.20) }, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(30.00) } }
+        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .spotAtOpen = Euro(40.00), .strike = Euro(40.00), .premiumPerShare = 1.00, .spotAtExpiry = Euro(35.00), .observed = RollObservation{ .on = On(2025, 12, 15), .valuePerShare = 0.20, .delta = Delta::FromValue(-0.20) }, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(30.00) } }
     };
     const std::vector<ProjectionPeriod> held{
-        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .strike = Euro(40.00), .premiumPerShare = 1.00, .spotAtExpiry = Euro(35.00), .observed = RollObservation{ .on = On(2025, 12, 15), .valuePerShare = 0.70, .delta = Delta::FromValue(-0.20) }, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(30.00) } }
+        { .opened = On(2025, 7, 18), .expiry = On(2026, 1, 16), .spotAtOpen = Euro(40.00), .strike = Euro(40.00), .premiumPerShare = 1.00, .spotAtExpiry = Euro(35.00), .observed = RollObservation{ .on = On(2025, 12, 15), .valuePerShare = 0.70, .delta = Delta::FromValue(-0.20) }, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(30.00) } }
     };
 
     auto closes = Wheel(Euro(200000.00), fullyInvested, RollsOnHalfTheProfit());
@@ -460,7 +460,7 @@ TEST_F(TestProjection, shares_held_through_a_cycle_earn_the_dividend_net_of_with
 
     Projection wheel("ACME", holder, fullyInvested, NeverRolls(), Fees(), Rules());
     const std::vector<ProjectionPeriod> periods{
-        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .strike = Euro(12.00), .premiumPerShare = 0.50, .spotAtExpiry = Euro(11.00), .observed = std::nullopt, .assessed = std::nullopt, .dividendPerShare = 0.30, .dividendWithholdingBasisPoints = 1500 }
+        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .spotAtOpen = Euro(12.00), .strike = Euro(12.00), .premiumPerShare = 0.50, .spotAtExpiry = Euro(11.00), .observed = std::nullopt, .assessed = std::nullopt, .dividendPerShare = 0.30, .dividendWithholdingBasisPoints = 1500 }
     };
 
     const auto rows = wheel.Over(periods);
@@ -477,7 +477,7 @@ TEST_F(TestProjection, a_cycle_spent_in_cash_earns_no_dividend_even_when_it_ends
 {
     auto wheel = Wheel(Euro(10000.00), fullyInvested, NeverRolls());
     const std::vector<ProjectionPeriod> periods{
-        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .strike = Euro(40.00), .premiumPerShare = 0.80, .spotAtExpiry = Euro(35.00), .observed = std::nullopt, .assessed = std::nullopt, .dividendPerShare = 1.00, .dividendWithholdingBasisPoints = 1500 }
+        { .opened = On(2025, 1, 3), .expiry = On(2025, 7, 18), .spotAtOpen = Euro(40.00), .strike = Euro(40.00), .premiumPerShare = 0.80, .spotAtExpiry = Euro(35.00), .observed = std::nullopt, .assessed = std::nullopt, .dividendPerShare = 1.00, .dividendWithholdingBasisPoints = 1500 }
     };
 
     const auto rows = wheel.Over(periods);
@@ -491,9 +491,9 @@ TEST_F(TestProjection, a_charge_the_free_cash_cannot_meet_is_borrowed_and_repaid
 {
     auto wheel = Wheel(Euro(200000.00), fullyInvested, NeverRolls());
     const std::vector<ProjectionPeriod> periods{
-        { .opened = On(2025, 12, 1), .expiry = On(2025, 12, 31), .strike = Euro(40.00), .premiumPerShare = 0.50, .spotAtExpiry = Euro(35.00), .observed = std::nullopt, .assessed = std::nullopt },
-        { .opened = On(2025, 12, 31), .expiry = On(2026, 1, 30), .strike = Euro(38.00), .premiumPerShare = 0.01, .spotAtExpiry = Euro(36.00), .observed = std::nullopt, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(35.00) } },
-        { .opened = On(2026, 1, 30), .expiry = On(2026, 3, 1), .strike = Euro(40.00), .premiumPerShare = 0.60, .spotAtExpiry = Euro(36.00), .observed = std::nullopt, .assessed = std::nullopt }
+        { .opened = On(2025, 12, 1), .expiry = On(2025, 12, 31), .spotAtOpen = Euro(40.00), .strike = Euro(40.00), .premiumPerShare = 0.50, .spotAtExpiry = Euro(35.00), .observed = std::nullopt, .assessed = std::nullopt },
+        { .opened = On(2025, 12, 31), .expiry = On(2026, 1, 30), .spotAtOpen = Euro(38.00), .strike = Euro(38.00), .premiumPerShare = 0.01, .spotAtExpiry = Euro(36.00), .observed = std::nullopt, .assessed = TaxObservation{ .on = On(2026, 1, 1), .spot = Euro(35.00) } },
+        { .opened = On(2026, 1, 30), .expiry = On(2026, 3, 1), .spotAtOpen = Euro(40.00), .strike = Euro(40.00), .premiumPerShare = 0.60, .spotAtExpiry = Euro(36.00), .observed = std::nullopt, .assessed = std::nullopt }
     };
 
     const auto rows = wheel.Over(periods);

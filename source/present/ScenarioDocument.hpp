@@ -38,6 +38,7 @@ namespace fin::present
         std::int32_t observationDaysBeforeExpiry;
         std::int32_t targetDeltaBasisPoints;
         std::int32_t cashBufferBasisPoints;
+        std::int32_t maxCollateralPerNameBasisPoints;
         std::int32_t rollDeltaLimitBasisPoints;
         std::int32_t rollDaysToExpiry;
         std::int32_t rollProfitCaptureBasisPoints;
