@@ -63,9 +63,10 @@ a strike.
 ## Worked example
 
 Shell on 2025-10-20, the first opening of the published backtest, with a window of 252 closes,
-exponential weighting with a half-life of 60 closes, least-squares drift and a premium of 200
-basis points. The window is the 252 closes from 2024-10-21 to 2025-10-17; the close of 2025-10-20
-itself is excluded. The smoothing factor is $\lambda = 1 - 2^{-1/60} = 0.01148$. The rule reports a
+exponential weighting with a half-life of 60 closes, a least-squares drift (shown to illustrate the
+line; the published scenarios keep the stated drift) and a premium of 200 basis points. The
+window is the 252 closes from 2024-10-21 to 2025-10-17; the close of 2025-10-20 itself is
+excluded. The smoothing factor is $\lambda = 1 - 2^{-1/60} = 0.01148$. The rule reports a
 volatility of 18.82%, a drift of 0.57% and an implied volatility of 20.82%, against the 22%, 5% and
 24% the scenario states. Six months later, at the opening of 2026-04-20, the same rule over the 252
 closes to 2026-04-17 reports 24.38%, 25.35% and 26.38%: the share had risen by a fifth over the
@@ -75,9 +76,9 @@ window and the weighted estimator had seen the busier spring.
 
 - **The drift is the loud figure.** Over a window of one year the standard error of an estimated
   drift is of the order of the volatility itself, so a name with a realised volatility of 25%
-  reports a drift anywhere within some 25 percentage points of the truth, and the published
-  backtest shows drifts from -18% to +73% in the same cycle. The volatility, by contrast, is known
-  to within about $\hat\sigma / \sqrt{2(n-1)}$, a twentieth of itself for a year of daily closes.
+  reports a drift anywhere within some 25 percentage points of the truth, and the line over the
+  BENELUX histories gave drifts from -18% to +73% in the same cycle. The volatility, by contrast,
+  is known to within about $\hat\sigma / \sqrt{2(n-1)}$, a twentieth of itself for a year of daily closes.
   Use the *stated* drift when the forward figure matters more than the discipline.
 - **A weighted estimator sees fewer closes than the window holds.** With $h = 60$ the effective
   count is about $2/\lambda - 1 \approx 173$ of the 252, and the estimate moves within a season.

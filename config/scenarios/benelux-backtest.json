@@ -8,7 +8,7 @@
     "observation_days_before_expiry": 14,
     "target_delta_basis_points": 3000,
     "cash_buffer_basis_points": 500,
-    "max_collateral_per_name_basis_points": 1500,
+    "max_collateral_per_name_basis_points": 900,
     "roll_delta_limit_basis_points": 5000,
     "roll_days_to_expiry": 7,
     "roll_profit_capture_basis_points": 8000,
@@ -26,7 +26,7 @@
         "window_observations": 252,
         "volatility_estimator": "exponentially_weighted",
         "half_life_observations": 60,
-        "drift_estimator": "least_squares",
+        "drift_estimator": "stated",
         "implied_premium_basis_points": 200
     },
     "underlyings": [
