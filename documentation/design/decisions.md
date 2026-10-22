@@ -1263,7 +1263,9 @@ every name holds, marked at the spot of that opening. The order of service (D43)
 cap only limits what the name served first may take, so the names after it see what is left. A
 name holding shares writes covered calls and reserves nothing new, so the cap binds only on puts.
 Ten thousand basis points is the book as it was: the example scenario states it and its golden
-projection is unchanged.
+projection is unchanged. The BENELUX scenarios stated 1500 at first and state 900 since the
+backtest showed ten names at 15% cannot all write out of a 95% pot
+([research/benelux-backtest.md](../research/benelux-backtest.md)).
 
 Why: run on the ten BENELUX names, the richest-premium-first rule gave one airline nearly the whole
 pot, and a book of ten was in effect a book of one. A cap per name is the smallest rule that keeps

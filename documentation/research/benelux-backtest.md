@@ -1,27 +1,32 @@
 # BENELUX backtest
 
-*Research note dated 2026-10-20. Not financial advice: one year of one book replayed over closes
-from Euronext, with every limitation of the model behind it.*
+*Research note dated 2026-10-20, re-run on 2026-10-22 with the cap and the drift the owner chose
+after the first run. Not financial advice: one year of one book replayed over closes from
+Euronext, with every limitation of the model behind it.*
 
 ## Summary
 
 The ten BENELUX names were run through the wheel from 2025-10-20 to 2026-10-19, two cycles of 182
 days, with each name's drift, volatility and implied volatility re-estimated at the opening of each
-cycle from the 252 closes before it (exponentially weighted volatility, half-life 60 closes,
-least-squares drift, a 200 basis point premium for pricing). The book went from EUR 200,000.00 to
-EUR 197,538.60 at the first expiry and EUR 205,477.60 at the second: +2.7% over the year, after
-fees and a wealth-tax charge, in a year in which four of the names rose by more than 40% and
-Prosus fell by 39%. A simulation from the same start, on the same calibrated terms and the same
-spots, put the median a year out at EUR 210,438.10 (+5.2%) with a 5th percentile of
-EUR 197,642.35 and a 95th of EUR 218,113.10, so the realised year sits in the lower third of what
-the model expected. No name was assigned: every put that went into the money was rolled under the
-delta trigger, at a cost (Prosus alone paid EUR 7,405.00 net in rolls). Two names never wrote a
-contract, because a 15% cap per name over ten names fills the pot after the first six or seven.
+cycle from the 252 closes before it (exponentially weighted volatility, half-life 60 closes, a
+200 basis point premium for pricing), the drift kept as stated at 5% a year, and at most 9% of the
+book's equity reserved per name. The book went from EUR 200,000.00 to EUR 198,953.60 at the first
+expiry and EUR 202,509.10 at the second: +1.25% over the year, after fees and a wealth-tax charge,
+in a year in which four of the names rose by more than 40% and Prosus fell by 39%. A simulation
+from the same start, on the same calibrated volatilities and the same spots, put the median a year
+out at EUR 204,166.10 (+2.1%) with a 5th percentile of EUR 194,267.10 and a 95th of
+EUR 210,457.35, so the realised year sits a little under the median of what the model expected.
+Every name wrote in both cycles and none was assigned: every put that went into the money was
+rolled under the delta trigger, at a cost (Prosus alone paid EUR 4,396.00 net in rolls).
 
-The loudest figure is the calibrated drift, which ranged from -18% to +73% a year across names in
-the same cycle; it is estimated from one year of closes and its error is of the order of the
-volatility. The volatilities themselves came out below the figures stated in the scenario for
-seven of the ten names in the first cycle and above them for most in the second.
+The first run, on 2026-10-20, used a 15% cap and a least-squares drift. It ended higher, at
+EUR 205,477.60, because the winners of the year took more of the book, but two names never wrote a
+contract and the calibrated drifts ranged from -18% to +73% a year across names in the same cycle,
+which is the standard error of a one-year line rather than a view on the names. The owner chose
+the stated drift and a cap that lets ten names fit; this note records the re-run, and keeps the
+first run's figures where they explain the choice. The volatilities, which the cap and the drift do
+not touch, came out below the figures stated in the scenario for seven of the ten names in the
+first cycle and above them for most in the second.
 
 ## Motivation
 
@@ -37,14 +42,14 @@ year that happened with the spread of years the model expected at the same start
 | Backtest | the book's rules run over the closes as they were, in schedule order, with no sight of later closes |
 | Window | the 252 closes dated strictly before a cycle's opening |
 | Realised volatility | exponentially weighted, half-life 60 closes, annualised by the window's own trading days |
-| Drift | least-squares line through the log closes of the window, plus half the variance |
+| Drift | as stated per name, 5% a year; the least-squares line is reported for comparison only |
 | Implied | realised plus 200 basis points, the volatility the puts and calls were priced at |
-| Cap | at most 15% of the book's opening equity reserved per name ([decision D54](../design/decisions.md)) |
+| Cap | at most 9% of the book's opening equity reserved per name ([decision D54](../design/decisions.md)) |
 
-The scenario is `config/scenarios/benelux-backtest.json`: capital EUR 200,000, cash buffer 5%,
-target delta 30%, roll at delta 50% or 7 days before expiry or at 80% of the premium earned, 2%
-risk-free rate, Box 3 assessed on 1 January, DEGIRO fees, and spots stated as the closes of
-2025-10-20 so that a simulation from the same scenario opens where the backtest does.
+The scenario is `config/scenarios/benelux-backtest.json`: capital EUR 200,000, cash buffer 5%, cap
+9% per name, target delta 30%, roll at delta 50% or 7 days before expiry or at 80% of the premium
+earned, 2% risk-free rate, Box 3 assessed on 1 January, DEGIRO fees, and spots stated as the
+closes of 2025-10-20 so that a simulation from the same scenario opens where the backtest does.
 
 ## Method
 
@@ -70,42 +75,44 @@ assignment only at expiry, every name independent in the simulation.
 | Boundary | Equity | Change |
 |---|---|---|
 | 2025-10-20 | 200,000.00 | |
-| 2026-04-20 | 197,538.60 | -1.23% |
-| 2026-10-19 | 205,477.60 | +4.02% (+2.74% over the year) |
+| 2026-04-20 | 198,953.60 | -0.52% |
+| 2026-10-19 | 202,509.10 | +1.79% (+1.25% over the year) |
 
 The Box 3 charge struck for 2026-01-01 was EUR 701.90: the book was entirely in cash at the turn
 of the year, which the model classes as a deposit (1.37% deemed return, taxed at 36% above the
 EUR 57,684 allowance). No dividend was received, since no share was ever held, and nothing was
-borrowed. Option fees came to EUR 145.50 in the first cycle and EUR 141.00 in the second.
+borrowed. Option fees came to EUR 106.50 in the first cycle and EUR 100.50 in the second.
 
 **Per name.** Contracts written at each opening and the premium received net of rolls and the
 option fees of the cycle; the price path is the close at each opening and at the last expiry.
 
 | Name | Cycle 1 contracts | Cycle 1 premium | Cycle 2 contracts | Cycle 2 premium | Close 2025-10-20 → 2026-04-20 → 2026-10-19 |
 |---|---|---|---|---|---|
-| SHELL | 0 | 0.00 | 1 | 127.00 | 31.27 → 37.60 → 46.86 (+50%) |
-| INGA | 15 | 1,095.00 | 13 | 1,547.00 | 20.60 → 24.50 → 29.50 (+43%) |
-| MT | 9 | 1,602.00 | 6 | 2,118.00 | 33.35 → 52.90 → 56.52 (+70%) |
-| AD | 0 | 0.00 | 0 | 0.00 | 36.74 → 41.30 → 32.61 (-11%) |
-| PHIA | 13 | 1,092.00 | 13 | -39.00 | 24.45 → 24.82 → 22.91 (-6%) |
-| UNA | 2 | -124.00 | 2 | 344.00 | 53.98 → 49.31 → 58.23 (+8%) |
-| ABN | 13 | 1,001.00 | 10 | 1,140.00 | 24.83 → 30.10 → 40.30 (+62%) |
-| PRX | 5 | -5,760.00 | 7 | -1,645.00 | 58.63 → 43.99 → 35.70 (-39%) |
-| AF | 28 | -1,960.00 | 32 | 3,008.00 | 11.72 → 10.26 → 10.34 (-12%) |
-| AALB | 12 | 1,440.00 | 10 | 1,480.00 | 27.46 → 31.66 → 41.18 (+50%) |
+| SHELL | 6 | 534.00 | 5 | 635.00 | 31.27 → 37.60 → 46.86 (+50%) |
+| INGA | 9 | 657.00 | 8 | 952.00 | 20.60 → 24.50 → 29.50 (+43%) |
+| MT | 5 | 890.00 | 3 | 1,059.00 | 33.35 → 52.90 → 56.52 (+70%) |
+| AD | 5 | 385.00 | 4 | -2,072.00 | 36.74 → 41.30 → 32.61 (-11%) |
+| PHIA | 8 | 672.00 | 8 | -24.00 | 24.45 → 24.82 → 22.91 (-6%) |
+| UNA | 3 | -186.00 | 4 | 688.00 | 53.98 → 49.31 → 58.23 (+8%) |
+| ABN | 8 | 616.00 | 6 | 684.00 | 24.83 → 30.10 → 40.30 (+62%) |
+| PRX | 3 | -3,456.00 | 4 | -940.00 | 58.63 → 43.99 → 35.70 (-39%) |
+| AF | 17 | -1,190.00 | 19 | 1,786.00 | 11.72 → 10.26 → 10.34 (-12%) |
+| AALB | 7 | 840.00 | 6 | 888.00 | 27.46 → 31.66 → 41.18 (+50%) |
 
 A negative premium is a cycle in which the put was rolled down at a net debit larger than the
 premium first received. Every name ended both cycles in cash: no put was assigned, because the
-delta trigger fired first on each of the names that fell. Shell and Ahold Delhaize wrote nothing in
-the first cycle and Ahold nothing in the second: collateral is offered richest premium first
-([decision D43](../design/decisions.md)), the first six or seven names each took their 15% cap, and
-the pot (95% of equity after the buffer) was gone before the two lowest-volatility names were
-reached.
+delta trigger fired first on each of the names that fell. Every name wrote in both cycles: at 9%
+each, ten names reserve 90% of the equity, inside the 95% left after the buffer, so the service
+order ([decision D43](../design/decisions.md)) decides who goes first but no longer who goes
+without. In the first run, at 15%, Shell and Ahold Delhaize had written nothing in the first cycle
+and Ahold nothing in the second.
 
-**The estimates the rule used.** Realised volatility, drift and implied, against the scenario's
-stated volatility (realised, before the premium).
+**The estimates the rule used.** Realised volatility per cycle against the scenario's stated
+volatility (before the 200 basis point premium), and the drift a least-squares line through the
+same windows would have given. The run itself used the stated 5% drift for every name; the
+line's figures are the first run's, kept to show why.
 
-| Name | Stated vol | Cycle 1 vol | Cycle 1 drift | Cycle 2 vol | Cycle 2 drift |
+| Name | Stated vol | Cycle 1 vol | Cycle 1 line drift | Cycle 2 vol | Cycle 2 line drift |
 |---|---|---|---|---|---|
 | SHELL | 22% | 18.82% | 0.57% | 24.38% | 25.35% |
 | INGA | 28% | 22.10% | 42.91% | 31.31% | 37.70% |
@@ -122,47 +129,48 @@ The windows end on 2025-10-17 and 2026-04-17, the last closes before each openin
 volatility is each realised figure plus two points.
 
 **What the model expected at the same start.** The simulation of the same scenario, 256 paths,
-seed 20261019, terms calibrated once at 2025-10-20:
+seed 20261019, volatilities calibrated once at 2025-10-20 and every drift 5%:
 
-| Measure | Value |
-|---|---|
-| Equity at the 5th percentile | 197,642.35 |
-| Equity at the median | 210,438.10 |
-| Equity at the 95th percentile | 218,113.10 |
-| Mean growth a year | 4.64% |
-| Worst drawdown | 9.79% |
-| Assignments per option written | 1.50% |
-| The one projection on the calibrated drifts | 201,445.85 then 214,998.57 |
+| Measure | Value | First run (15% cap, line drift) |
+|---|---|---|
+| Equity at the 5th percentile | 194,267.10 | 197,642.35 |
+| Equity at the median | 204,166.10 | 210,438.10 |
+| Equity at the 95th percentile | 210,457.35 | 218,113.10 |
+| Mean growth a year | 1.73% | 4.64% |
+| Worst drawdown | 9.45% | 9.79% |
+| Assignments per option written | 2.62% | 1.50% |
+| The one projection on the stated drifts | 201,249.10 then 205,339.60 | 201,445.85 then 214,998.57 |
 
-The realised 205,477.60 is at about the 25th percentile of the simulated year. The projection,
-which walks each name along its calibrated drift with no noise, ends higher than the backtest
-because drifts of 40% to 70% on ING, ArcelorMittal, ABN AMRO and Prosus carry those names away
-from their strikes, whereas the year that happened took Prosus down by two fifths.
+The realised 202,509.10 sits a little under the median of the simulated year. The first run's
+simulation had expected more because it walked ING, ArcelorMittal, ABN AMRO and Prosus along
+line drifts of 40% to 70% a year; at 5% the expectation is a modest one and the year that
+happened, with Prosus down by two fifths, lands close to it.
 
 ## Reading the result
 
 - **Rolling worked as a stop, and it was paid for.** The names that fell were rolled rather than
-  assigned, and four of them ended a cycle with a net debit after the premium first received:
-  Prosus 7,405.00 over the year, Air France-KLM 1,960.00 in the first cycle, Unilever 124.00 and
-  Philips 39.00, EUR 9,528.00 in all. The book never held a share, so it never earned a dividend
-  either. Whether a roll at delta 50% is better than taking
-  the shares is the question the roll levers exist for; this year says it kept the drawdown to
-  1.2% at the first boundary where an assignment on Prosus would have cost more.
-- **The cap and the count do not fit.** Ten names at 15% each is 150% of equity against a pot of
-  95%, so the service order decides who writes and the two lowest-volatility names never do. Either
-  the cap comes down to about 9% or the list to six names; as it stands the last names on the list
-  are passengers.
+  assigned, and five of them ended a cycle with a net debit after the premium first received:
+  Prosus 4,396.00 over the year, Ahold Delhaize 2,072.00 in the second cycle, Air France-KLM
+  1,190.00 in the first, Unilever 186.00 and Philips 24.00, EUR 7,868.00 in all. The book never
+  held a share, so it never earned a dividend either. Whether a roll at delta 50% is better than
+  taking the shares is the question the roll levers exist for; this year says it kept the drawdown
+  to 0.5% at the first boundary where an assignment on Prosus would have cost more.
+- **Spreading the book cost return and bought calm.** At 9% every name wrote and the first
+  boundary dipped 0.5% instead of 1.2%, but the year ended at +1.25% instead of +2.7%: the names
+  that rose by half (Shell, ING, ABN AMRO, Aalberts) had fewer contracts to collect premium on, and
+  the premium of the ten is more evenly spread, so one winner carries less. That is what a cap is
+  for; the owner chose it knowing the first run's figure.
 - **The volatilities moved more than the stated ones allowed for.** Between the two openings the
   realised figure rose on nine of ten names (Shell from 18.8% to 24.4%, ArcelorMittal from 34.7% to
   45.3%, Air France-KLM from 43.2% to 55.2%), and the second cycle's premiums are higher for it. A
   fixed scenario volatility would have priced the second cycle too low; this is the case for the
   rule.
-- **The drift is not a figure to lean on.** The same rule gave ABN AMRO 73% a year in October and
-  40% in April, Aalberts -18% then +11%. These are not opinions about the names, they are the
-  standard error of a one-year line, and a forward projection on them is a projection on noise.
-  For a forward run the `stated` drift estimator with a calibrated volatility is the sounder
-  setting; the forward scenario `benelux.json` keeps least squares so that the owner sees the
-  effect and chooses.
+- **The drift is not a figure to lean on, so it is no longer estimated.** The line gave ABN AMRO
+  73% a year in October and 40% in April, Aalberts -18% then +11%. These are not opinions about
+  the names, they are the standard error of a one-year line, and the first run's simulation on
+  them expected +5% where the stated 5% expects +2%. Both scenarios now keep the stated drift and
+  calibrate the volatility only; the backtest itself does not move with the drift (the replayed
+  closes are what they are), only the simulation beside it does.
 
 ## Limits of this test
 
@@ -180,11 +188,10 @@ from their strikes, whereas the year that happened took Prosus down by two fifth
 
 ## Next steps
 
-1. Decide the cap against the count of names (9% for ten, or six names at 15%).
-2. Set `drift_estimator` to `stated` in `benelux.json` unless a forward drift of the order of the
-   calibrated figures is wanted.
-3. Supply longer histories where a source allows, and re-run; the scenario needs no other change.
-4. A bid-ask spread and an implied volatility from quotes are the two inputs this test most lacks.
+1. Supply longer histories where a source allows, and re-run; the scenario needs no other change.
+2. A bid-ask spread and an implied volatility from quotes are the two inputs this test most lacks.
+3. If the list of names changes, revisit the cap: it should stay at or under the pot divided by
+   the count (95% over ten names is 9.5%).
 
 ## References
 
