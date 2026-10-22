@@ -48,9 +48,8 @@ year that happened with the spread of years the model expected at the same start
 
 The scenario is `config/scenarios/benelux-backtest.json`: capital EUR 200,000, cash buffer 5%, cap
 9% per name, target delta 30%, roll at delta 50% or 7 days before expiry or at 80% of the premium
-earned, 2% risk-free rate, Box 3 assessed on 1 January, DEGIRO fees, and spots stated as the closes
-of
-2025-10-20 so that a simulation from the same scenario opens where the backtest does.
+earned, 2% risk-free rate, Box 3 assessed on 1 January, DEGIRO fees, and spots stated as the
+closes of 2025-10-20 so that a simulation from the same scenario opens where the backtest does.
 
 ## Method
 
