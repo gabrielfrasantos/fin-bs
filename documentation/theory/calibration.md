@@ -78,8 +78,8 @@ window and the weighted estimator had seen the busier spring.
   drift is of the order of the volatility itself, so a name with a realised volatility of 25%
   reports a drift anywhere within some 25 percentage points of the truth, and the line over the
   BENELUX histories gave drifts from -18% to +73% in the same cycle. The volatility, by contrast,
-  is known to within about $\hat\sigma / \sqrt{2(n-1)}$, a twentieth of itself for a year of daily closes.
-  Use the *stated* drift when the forward figure matters more than the discipline.
+  is known to within about $\hat\sigma / \sqrt{2(n-1)}$, a twentieth of itself for a year of
+  daily closes. Use the *stated* drift when the forward figure matters more than the discipline.
 - **A weighted estimator sees fewer closes than the window holds.** With $h = 60$ the effective
   count is about $2/\lambda - 1 \approx 173$ of the 252, and the estimate moves within a season.
 - **The window is in closes, not days.** A history with gaps (a thinly traded line, a holiday
