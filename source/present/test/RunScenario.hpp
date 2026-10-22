@@ -1,6 +1,7 @@
 #pragma once
 
 #include "source/present/RunController.hpp"
+#include "source/sim/GbmPathGenerator.hpp"
 
 namespace fin::present::test
 {
@@ -67,6 +68,56 @@ namespace fin::present::test
     {
         const auto scenario = TwoNames();
 
-        return RunInputs{ .scenario = scenario, .fees = Fees(), .taxes = Taxes(), .search = SearchAround(scenario, 4000, 5000, 1) };
+        return RunInputs{ .scenario = scenario, .fees = Fees(), .taxes = Taxes(), .search = SearchAround(scenario, 4000, 5000, 1), .histories = {} };
+    }
+
+    inline std::vector<core::Date> BusinessDays(const core::Date& start, std::size_t observations)
+    {
+        std::vector<core::Date> dates;
+        auto date = start;
+
+        while (dates.size() != observations)
+        {
+            if (!date.IsWeekend())
+                dates.push_back(date);
+
+            date = date.AddDays(1);
+        }
+
+        return dates;
+    }
+
+    inline estimation::PriceSeries History(const sim::UnderlyingTerms& underlying, std::uint64_t seed)
+    {
+        sim::Rng rng(seed);
+        const sim::GbmPathGenerator generator(sim::GbmParameters{ .initialPrice = underlying.initialPrice,
+            .drift = underlying.drift,
+            .volatility = underlying.volatility,
+            .convention = core::DayCountConvention::Act252 });
+
+        return generator.Along(BusinessDays(core::Date::FromYearMonthDay(2023, 1, 2), 1050), rng);
+    }
+
+    inline io::Calibration Rule()
+    {
+        return io::Calibration{ .priceHistories = "../data/prices",
+            .rule = sim::CalibrationRule{ .windowObservations = 252,
+                .volatility = sim::VolatilityEstimator::historical,
+                .halfLifeObservations = 60,
+                .drift = sim::DriftEstimator::leastSquares,
+                .impliedPremiumBasisPoints = 200 } };
+    }
+
+    inline RunInputs Calibrated()
+    {
+        auto inputs = Inputs();
+        inputs.scenario.calibration = Rule();
+
+        std::uint64_t seed = 1;
+
+        for (const auto& underlying : inputs.scenario.terms.underlyings)
+            inputs.histories.push_back(NamedHistory{ underlying.underlying, History(underlying, seed++) });
+
+        return inputs;
     }
 }

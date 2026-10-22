@@ -1273,3 +1273,42 @@ capital, so that the cap compounds with the book, and rather than cash alone, so
 in shares still counts toward the whole. The period therefore carries the spot at its opening, which
 the simulation already read to choose the strike.
 
+
+## D55 - Calibration is a stated rule over the closes strictly before the date it serves (2026-10-20)
+
+A scenario may carry a `calibration` block: a folder of price histories (one `TICKER.csv` per
+underlying, `date,close`) and a rule. The rule names a window of closes, a volatility estimator
+(every close alike, or exponentially weighted with a half-life in closes), a drift estimator (a
+least-squares line through the log closes, converted to the drift of the price by adding half the
+variance, or the figure stated per underlying) and an implied premium in basis points of annual
+volatility that is added to the realised figure to price the options. Asked for a name's terms on a
+date, the rule takes the last window of closes dated strictly before that date, estimates from them,
+and replaces the underlying's drift, volatility and implied volatility, leaving its spot, yield,
+withholding and strike grid as stated. A history that holds fewer closes than the window, closes
+that do not move, or a premium that takes the implied volatility to nothing is refused by name and
+date. A backtest applies the rule at the opening of every cycle; the estimates it used are reported
+beside the cycle table.
+
+Why: the owner asked for a system that calibrates itself to market conditions, and a backtest that
+re-estimates at every opening is the honest form of that: nothing after the opening is known to the
+rule, so the result is what the book would have done, not what it would have done had it known the
+year. The window is a count of closes rather than a span of days so that it means the same on every
+calendar; the estimators are the ones the estimation layer already had (D11, D13) and the premium is
+the one figure the history cannot supply. The levers (delta, buffer, roll triggers, the cap) stay as
+set: a rule that moved them with the market was deliberately left for a later decision.
+
+## D56 - A forward run with a calibration takes its terms at the start from the rule, then holds them (2026-10-20)
+
+A projection, a simulation or a search of a scenario with a calibration block applies the rule once,
+at the start date, to the histories ending there, and runs on the terms that gives; inside the
+simulated future nothing is re-estimated. The spot stays as stated in the scenario. The estimates
+used are reported with the result. A backtest, by contrast, replays the closes themselves, reads the
+spot from them, and re-estimates at every opening.
+
+Why: a simulated path is drawn from the terms, so re-estimating from it would only recover them with
+noise and present the circularity as information. Taking the terms at the start from the same rule
+the backtest uses keeps the two comparable: the backtest shows what the rule did over the year that
+happened, the simulation what it expects over the years that might. The drift is the figure to be
+wary of: estimated from a year of closes its error is of the order of the volatility itself (see
+[drift estimation](../theory/drift-estimation.md)), and the `stated` drift estimator exists so that an
+owner who does not trust that figure can keep volatility calibrated and the drift their own.

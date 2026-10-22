@@ -21,8 +21,12 @@ target_sources(fin.sim PRIVATE
     BookMonteCarlo.hpp
     BookScript.cpp
     BookScript.hpp
+    Calibration.cpp
+    Calibration.hpp
     GbmPathGenerator.cpp
     GbmPathGenerator.hpp
+    HistoricalPath.cpp
+    HistoricalPath.hpp
     MonteCarlo.cpp
     MonteCarlo.hpp
     OutcomeDistribution.cpp

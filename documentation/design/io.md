@@ -95,6 +95,17 @@ a field written as the wrong kind of value, a field outside the range it allows,
 underlyings, a repeated ticker, a start that is not a day of the calendar, or an assessment date
 that not every year holds. Nothing partial comes into existence.
 
+A scenario may also carry a **`calibration` object** ([decision D55](decisions.md)): the folder its
+price histories are in, relative to the configuration directory, with one `TICKER.csv` per
+underlying, and the rule (`window_observations` 20 to 5000, `volatility_estimator` `historical` or
+`exponentially_weighted`, `half_life_observations` 1 to the window, `drift_estimator`
+`least_squares` or `stated`, `implied_premium_basis_points` -10000 to 10000). The object is all or
+nothing: once present, every key is required and a missing one is refused by name, so a typo cannot
+quietly turn calibration off. A scenario without the object states its terms outright. Written back,
+the object comes out as it went in. The histories themselves are read by the window when a run is
+asked for, each refused by ticker and line like any price history, and a name without a file is
+refused by the path that was looked for.
+
 ### What a report is
 
 Two tables, both written as rows of comma-separated values, both written from whole minor units and

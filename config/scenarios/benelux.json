@@ -21,6 +21,14 @@
     "seed": 20261019,
     "tax_configuration": "tax/nl_2025.json",
     "broker_configuration": "broker/degiro.json",
+    "calibration": {
+        "price_histories": "../data/prices",
+        "window_observations": 252,
+        "volatility_estimator": "exponentially_weighted",
+        "half_life_observations": 60,
+        "drift_estimator": "least_squares",
+        "implied_premium_basis_points": 200
+    },
     "underlyings": [
         {
             "ticker": "SHELL",

@@ -344,6 +344,97 @@ namespace fin::gui
             });
     }
 
+    bool ScenarioModel::Calibrated() const
+    {
+        return document.Fields().calibrated;
+    }
+
+    void ScenarioModel::SetCalibrated(bool calibrated)
+    {
+        Amend([&](present::ScenarioFields& fields)
+            {
+                fields.calibrated = calibrated;
+            });
+    }
+
+    QString ScenarioModel::PriceHistories() const
+    {
+        return QString::fromStdString(document.Fields().priceHistories);
+    }
+
+    void ScenarioModel::SetPriceHistories(const QString& folder)
+    {
+        Amend([&](present::ScenarioFields& fields)
+            {
+                fields.priceHistories = folder.toStdString();
+            });
+    }
+
+    int ScenarioModel::WindowObservations() const
+    {
+        return document.Fields().windowObservations;
+    }
+
+    void ScenarioModel::SetWindowObservations(int observations)
+    {
+        Amend([&](present::ScenarioFields& fields)
+            {
+                fields.windowObservations = observations;
+            });
+    }
+
+    int ScenarioModel::VolatilityEstimator() const
+    {
+        return document.Fields().volatilityEstimator == sim::VolatilityEstimator::historical ? 0 : 1;
+    }
+
+    void ScenarioModel::SetVolatilityEstimator(int estimator)
+    {
+        Amend([&](present::ScenarioFields& fields)
+            {
+                fields.volatilityEstimator = estimator == 0 ? sim::VolatilityEstimator::historical : sim::VolatilityEstimator::exponentiallyWeighted;
+            });
+    }
+
+    int ScenarioModel::HalfLifeObservations() const
+    {
+        return document.Fields().halfLifeObservations;
+    }
+
+    void ScenarioModel::SetHalfLifeObservations(int observations)
+    {
+        Amend([&](present::ScenarioFields& fields)
+            {
+                fields.halfLifeObservations = observations;
+            });
+    }
+
+    int ScenarioModel::DriftEstimator() const
+    {
+        return document.Fields().driftEstimator == sim::DriftEstimator::leastSquares ? 0 : 1;
+    }
+
+    void ScenarioModel::SetDriftEstimator(int estimator)
+    {
+        Amend([&](present::ScenarioFields& fields)
+            {
+                fields.driftEstimator = estimator == 0 ? sim::DriftEstimator::leastSquares : sim::DriftEstimator::stated;
+            });
+    }
+
+    int ScenarioModel::ImpliedPremiumBasisPoints() const
+    {
+        return document.Fields().impliedPremiumBasisPoints;
+    }
+
+    void ScenarioModel::SetImpliedPremiumBasisPoints(int basisPoints)
+    {
+        Amend([&](present::ScenarioFields& fields)
+            {
+                fields.impliedPremiumBasisPoints = basisPoints;
+            });
+    }
+
     bool ScenarioModel::WellFormed() const
     {
         return present::IsWellFormed(document);

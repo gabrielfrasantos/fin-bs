@@ -36,6 +36,13 @@ namespace fin::gui
         Q_PROPERTY(int seed READ Seed WRITE SetSeed NOTIFY changed)
         Q_PROPERTY(QString taxConfiguration READ TaxConfiguration WRITE SetTaxConfiguration NOTIFY changed)
         Q_PROPERTY(QString brokerConfiguration READ BrokerConfiguration WRITE SetBrokerConfiguration NOTIFY changed)
+        Q_PROPERTY(bool calibrated READ Calibrated WRITE SetCalibrated NOTIFY changed)
+        Q_PROPERTY(QString priceHistories READ PriceHistories WRITE SetPriceHistories NOTIFY changed)
+        Q_PROPERTY(int windowObservations READ WindowObservations WRITE SetWindowObservations NOTIFY changed)
+        Q_PROPERTY(int volatilityEstimator READ VolatilityEstimator WRITE SetVolatilityEstimator NOTIFY changed)
+        Q_PROPERTY(int halfLifeObservations READ HalfLifeObservations WRITE SetHalfLifeObservations NOTIFY changed)
+        Q_PROPERTY(int driftEstimator READ DriftEstimator WRITE SetDriftEstimator NOTIFY changed)
+        Q_PROPERTY(int impliedPremiumBasisPoints READ ImpliedPremiumBasisPoints WRITE SetImpliedPremiumBasisPoints NOTIFY changed)
         Q_PROPERTY(bool wellFormed READ WellFormed NOTIFY changed)
         Q_PROPERTY(QString offendingField READ OffendingField NOTIFY changed)
         Q_PROPERTY(QString complaint READ Complaint NOTIFY changed)
@@ -89,6 +96,20 @@ namespace fin::gui
         void SetTaxConfiguration(const QString& path);
         QString BrokerConfiguration() const;
         void SetBrokerConfiguration(const QString& path);
+        bool Calibrated() const;
+        void SetCalibrated(bool calibrated);
+        QString PriceHistories() const;
+        void SetPriceHistories(const QString& folder);
+        int WindowObservations() const;
+        void SetWindowObservations(int observations);
+        int VolatilityEstimator() const;
+        void SetVolatilityEstimator(int estimator);
+        int HalfLifeObservations() const;
+        void SetHalfLifeObservations(int observations);
+        int DriftEstimator() const;
+        void SetDriftEstimator(int estimator);
+        int ImpliedPremiumBasisPoints() const;
+        void SetImpliedPremiumBasisPoints(int basisPoints);
 
         bool WellFormed() const;
         QString OffendingField() const;

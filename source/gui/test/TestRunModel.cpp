@@ -22,6 +22,16 @@ namespace
         return QString(FIN_BS_DATA_DIRECTORY) + "/golden/example-projection.csv";
     }
 
+    QString Backtest()
+    {
+        return Configurations() + "/scenarios/benelux-backtest.json";
+    }
+
+    QString GoldenBacktest()
+    {
+        return QString(FIN_BS_DATA_DIRECTORY) + "/golden/benelux-backtest.csv";
+    }
+
     QString Contents(const QString& path)
     {
         QFile file(path);
@@ -117,6 +127,52 @@ private slots:
         const auto written = QString::fromStdString(fin::io::CycleReport(workspace.Run()->Controller().Result()->rows));
 
         QCOMPARE(written, Contents(Golden()));
+    }
+
+    void backtests_the_published_histories_to_the_table_they_have_always_run_to()
+    {
+        fin::gui::Workspace workspace(Configurations());
+
+        QVERIFY(workspace.Open(Backtest()));
+        QCOMPARE(workspace.Scenario()->Calibrated(), true);
+
+        workspace.Run()->Start(fin::present::RunKind::backtest);
+        workspace.Run()->Await();
+
+        QCOMPARE(workspace.Run()->Controller().State(), fin::present::RunState::completed);
+        QCOMPARE(workspace.Run()->Kind(), QString("backtest"));
+        QCOMPARE(workspace.Run()->Cycles()->Rows(), 20);
+        QCOMPARE(workspace.Run()->Calibration()->Rows(), 20);
+        QVERIFY(!workspace.Run()->Highlights().isEmpty());
+
+        const auto written = QString::fromStdString(fin::io::CycleReport(workspace.Run()->Controller().Result()->rows));
+
+        QCOMPARE(written, Contents(GoldenBacktest()));
+    }
+
+    void names_the_history_it_cannot_find_rather_than_running_without_it()
+    {
+        fin::gui::Workspace workspace(Configurations());
+        workspace.Open(Backtest());
+        workspace.Scenario()->SetPriceHistories("../data/nowhere");
+
+        workspace.Run()->Start(fin::present::RunKind::backtest);
+
+        QCOMPARE(workspace.Run()->Running(), false);
+        QVERIFY(workspace.Run()->Status().contains("No price history for SHELL"));
+        QVERIFY(workspace.Run()->Status().contains("nowhere"));
+    }
+
+    void refuses_a_backtest_of_a_scenario_without_calibration_by_saying_so()
+    {
+        fin::gui::Workspace workspace(Configurations());
+        workspace.Open(Example());
+
+        workspace.Run()->Start(fin::present::RunKind::backtest);
+        workspace.Run()->Await();
+
+        QCOMPARE(workspace.Run()->Controller().State(), fin::present::RunState::failed);
+        QVERIFY(workspace.Run()->Status().contains("calibration"));
     }
 
     void exports_the_run_it_has_just_made()

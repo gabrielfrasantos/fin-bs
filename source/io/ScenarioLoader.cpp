@@ -22,7 +22,7 @@ namespace fin::io
         constexpr std::int32_t mostPaths = 1000000;
         constexpr std::int32_t nonLeapYear = 2001;
         constexpr std::size_t writtenDateSize = 10;
-        constexpr std::size_t roomPerScenario = 1024;
+        constexpr std::size_t roomPerScenario = 1536;
         constexpr std::size_t roomPerUnderlying = 512;
 
         core::Currency CurrencyNamed(const std::string& name)
@@ -39,6 +39,38 @@ namespace fin::io
         const char* NameOf(core::Currency currency)
         {
             return currency == core::Currency::Eur ? "EUR" : "USD";
+        }
+
+        sim::VolatilityEstimator VolatilityEstimatorNamed(const std::string& name)
+        {
+            if (name == "historical")
+                return sim::VolatilityEstimator::historical;
+
+            if (name == "exponentially_weighted")
+                return sim::VolatilityEstimator::exponentiallyWeighted;
+
+            throw std::runtime_error("String volatility_estimator " + name + " is not an estimator this project holds");
+        }
+
+        const char* NameOf(sim::VolatilityEstimator estimator)
+        {
+            return estimator == sim::VolatilityEstimator::historical ? "historical" : "exponentially_weighted";
+        }
+
+        sim::DriftEstimator DriftEstimatorNamed(const std::string& name)
+        {
+            if (name == "least_squares")
+                return sim::DriftEstimator::leastSquares;
+
+            if (name == "stated")
+                return sim::DriftEstimator::stated;
+
+            throw std::runtime_error("String drift_estimator " + name + " is not an estimator this project holds");
+        }
+
+        const char* NameOf(sim::DriftEstimator estimator)
+        {
+            return estimator == sim::DriftEstimator::leastSquares ? "least_squares" : "stated";
         }
 
         core::Money AmountAt(const infra::JsonObjectNavigator& navigator, const std::string& key, core::Currency currency, std::int32_t least)
@@ -136,6 +168,40 @@ namespace fin::io
             return sim::AnnualReference{ static_cast<std::uint32_t>(*month), static_cast<std::uint32_t>(*day) };
         }
 
+        std::optional<Calibration> CalibrationIn(const infra::JsonObjectNavigator& navigator)
+        {
+            const auto calibration = navigator / infra::JsonOptionalObjectNavigatorToken{ "calibration" };
+            const auto folder = calibration / infra::JsonStringNavigatorToken{ "price_histories" };
+
+            if (!folder.has_value())
+                return std::nullopt;
+
+            if (folder->empty())
+                throw std::runtime_error("String price_histories names nothing");
+
+            const auto window = *(calibration / infra::JsonIntegerNavigatorToken{ "window_observations" });
+
+            if (window < sim::leastWindowObservations || window > sim::mostWindowObservations)
+                throw std::runtime_error("Integer window_observations is outside the range this field allows");
+
+            const auto halfLife = *(calibration / infra::JsonIntegerNavigatorToken{ "half_life_observations" });
+
+            if (halfLife < 1 || halfLife > window)
+                throw std::runtime_error("Integer half_life_observations is outside the range this field allows");
+
+            const auto premium = *(calibration / infra::JsonIntegerNavigatorToken{ "implied_premium_basis_points" });
+
+            if (premium < -basisPointsPerUnit || premium > basisPointsPerUnit)
+                throw std::runtime_error("Integer implied_premium_basis_points is outside the range this field allows");
+
+            return Calibration{ .priceHistories = *folder,
+                .rule = sim::CalibrationRule{ .windowObservations = window,
+                    .volatility = VolatilityEstimatorNamed(*(calibration / infra::JsonStringNavigatorToken{ "volatility_estimator" })),
+                    .halfLifeObservations = halfLife,
+                    .drift = DriftEstimatorNamed(*(calibration / infra::JsonStringNavigatorToken{ "drift_estimator" })),
+                    .impliedPremiumBasisPoints = premium } };
+        }
+
         std::vector<sim::UnderlyingTerms> UnderlyingsIn(const infra::JsonObjectNavigator& navigator, core::Currency currency)
         {
             const auto listed = navigator / infra::JsonArrayNavigatorToken{ "underlyings" };
@@ -195,7 +261,8 @@ namespace fin::io
                 .paths = IntegerAt(navigator, "paths", 1, mostPaths),
                 .seed = static_cast<std::uint64_t>(IntegerAt(navigator, "seed", 0, std::numeric_limits<std::int32_t>::max())),
                 .taxConfiguration = TextAt(navigator, "tax_configuration"),
-                .brokerConfiguration = TextAt(navigator, "broker_configuration")
+                .brokerConfiguration = TextAt(navigator, "broker_configuration"),
+                .calibration = CalibrationIn(navigator)
             };
         }
 
@@ -252,6 +319,9 @@ namespace fin::io
             if (underlying.initialPrice.GetCurrency() != scenario.capital.GetCurrency() || underlying.strikeIncrement.GetCurrency() != scenario.capital.GetCurrency())
                 return false;
 
+        if (scenario.calibration.has_value() && (scenario.calibration->priceHistories.empty() || !sim::IsWellFormed(scenario.calibration->rule)))
+            return false;
+
         return strategy::IsWellFormed(scenario.triggers) && sim::IsWellFormed(scenario.terms);
     }
 
@@ -295,6 +365,17 @@ namespace fin::io
             formatter.Add("seed", static_cast<std::int64_t>(scenario.seed));
             formatter.Add("tax_configuration", infra::BoundedConstString(scenario.taxConfiguration));
             formatter.Add("broker_configuration", infra::BoundedConstString(scenario.brokerConfiguration));
+
+            if (scenario.calibration.has_value())
+            {
+                auto calibration = formatter.SubObject("calibration");
+                calibration.Add("price_histories", infra::BoundedConstString(scenario.calibration->priceHistories));
+                calibration.Add("window_observations", scenario.calibration->rule.windowObservations);
+                calibration.Add("volatility_estimator", NameOf(scenario.calibration->rule.volatility));
+                calibration.Add("half_life_observations", scenario.calibration->rule.halfLifeObservations);
+                calibration.Add("drift_estimator", NameOf(scenario.calibration->rule.drift));
+                calibration.Add("implied_premium_basis_points", scenario.calibration->rule.impliedPremiumBasisPoints);
+            }
 
             auto underlyings = formatter.SubArray("underlyings");
 

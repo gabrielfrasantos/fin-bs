@@ -1,0 +1,134 @@
+{
+    "scenario": "Ten BENELUX names replayed over the year to 2026-10-19, re-estimated at every cycle",
+    "currency": "EUR",
+    "capital_cents": 20000000,
+    "start_date": "2025-10-20",
+    "cycles": 2,
+    "days_per_cycle": 182,
+    "observation_days_before_expiry": 14,
+    "target_delta_basis_points": 3000,
+    "cash_buffer_basis_points": 500,
+    "max_collateral_per_name_basis_points": 1500,
+    "roll_delta_limit_basis_points": 5000,
+    "roll_days_to_expiry": 7,
+    "roll_profit_capture_basis_points": 8000,
+    "risk_free_rate_basis_points": 200,
+    "assessment": {
+        "month": 1,
+        "day": 1
+    },
+    "paths": 256,
+    "seed": 20261019,
+    "tax_configuration": "tax/nl_2025.json",
+    "broker_configuration": "broker/degiro.json",
+    "calibration": {
+        "price_histories": "../data/prices",
+        "window_observations": 252,
+        "volatility_estimator": "exponentially_weighted",
+        "half_life_observations": 60,
+        "drift_estimator": "least_squares",
+        "implied_premium_basis_points": 200
+    },
+    "underlyings": [
+        {
+            "ticker": "SHELL",
+            "spot_cents": 3127,
+            "drift_basis_points": 500,
+            "volatility_basis_points": 2200,
+            "implied_volatility_basis_points": 2400,
+            "dividend_yield_basis_points": 290,
+            "dividend_withholding_basis_points": 0,
+            "strike_increment_cents": 100
+        },
+        {
+            "ticker": "INGA",
+            "spot_cents": 2060,
+            "drift_basis_points": 500,
+            "volatility_basis_points": 2800,
+            "implied_volatility_basis_points": 3000,
+            "dividend_yield_basis_points": 360,
+            "dividend_withholding_basis_points": 1500,
+            "strike_increment_cents": 100
+        },
+        {
+            "ticker": "MT",
+            "spot_cents": 3335,
+            "drift_basis_points": 500,
+            "volatility_basis_points": 3800,
+            "implied_volatility_basis_points": 4000,
+            "dividend_yield_basis_points": 85,
+            "dividend_withholding_basis_points": 1500,
+            "strike_increment_cents": 200
+        },
+        {
+            "ticker": "AD",
+            "spot_cents": 3674,
+            "drift_basis_points": 500,
+            "volatility_basis_points": 2000,
+            "implied_volatility_basis_points": 2200,
+            "dividend_yield_basis_points": 380,
+            "dividend_withholding_basis_points": 1500,
+            "strike_increment_cents": 100
+        },
+        {
+            "ticker": "PHIA",
+            "spot_cents": 2445,
+            "drift_basis_points": 500,
+            "volatility_basis_points": 3000,
+            "implied_volatility_basis_points": 3200,
+            "dividend_yield_basis_points": 370,
+            "dividend_withholding_basis_points": 1500,
+            "strike_increment_cents": 100
+        },
+        {
+            "ticker": "UNA",
+            "spot_cents": 5398,
+            "drift_basis_points": 500,
+            "volatility_basis_points": 1800,
+            "implied_volatility_basis_points": 2000,
+            "dividend_yield_basis_points": 316,
+            "dividend_withholding_basis_points": 0,
+            "strike_increment_cents": 200
+        },
+        {
+            "ticker": "ABN",
+            "spot_cents": 2483,
+            "drift_basis_points": 500,
+            "volatility_basis_points": 2700,
+            "implied_volatility_basis_points": 2900,
+            "dividend_yield_basis_points": 390,
+            "dividend_withholding_basis_points": 1500,
+            "strike_increment_cents": 100
+        },
+        {
+            "ticker": "PRX",
+            "spot_cents": 5863,
+            "drift_basis_points": 500,
+            "volatility_basis_points": 3200,
+            "implied_volatility_basis_points": 3400,
+            "dividend_yield_basis_points": 78,
+            "dividend_withholding_basis_points": 0,
+            "strike_increment_cents": 100
+        },
+        {
+            "ticker": "AF",
+            "spot_cents": 1172,
+            "drift_basis_points": 500,
+            "volatility_basis_points": 4200,
+            "implied_volatility_basis_points": 4500,
+            "dividend_yield_basis_points": 0,
+            "dividend_withholding_basis_points": 2500,
+            "strike_increment_cents": 50
+        },
+        {
+            "ticker": "AALB",
+            "spot_cents": 2746,
+            "drift_basis_points": 500,
+            "volatility_basis_points": 3000,
+            "implied_volatility_basis_points": 3200,
+            "dividend_yield_basis_points": 278,
+            "dividend_withholding_basis_points": 1500,
+            "strike_increment_cents": 100
+        }
+    ]
+}

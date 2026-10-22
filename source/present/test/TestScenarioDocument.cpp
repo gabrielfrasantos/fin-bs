@@ -169,3 +169,51 @@ namespace
         EXPECT_THAT(Tickers(ScenarioDocument(*loader.Loaded())), ElementsAre("BETA", "ACME"));
     }
 }
+
+namespace
+{
+    using fin::present::test::Rule;
+
+    TEST(TestScenarioDocument, carries_a_calibration_block_and_prepares_it_back)
+    {
+        auto scenario = TwoNames();
+        scenario.calibration = Rule();
+
+        const ScenarioDocument document(scenario);
+
+        EXPECT_TRUE(document.Fields().calibrated);
+        EXPECT_EQ(document.Fields().windowObservations, 252);
+        EXPECT_EQ(document.Prepared(), scenario);
+        EXPECT_FALSE(ScenarioDocument(TwoNames()).Fields().calibrated);
+        EXPECT_FALSE(ScenarioDocument(TwoNames()).Prepared().calibration.has_value());
+    }
+
+    TEST(TestScenarioDocument, refuses_a_half_life_longer_than_the_window_by_name)
+    {
+        auto document = Edited();
+        auto fields = document.Fields();
+        fields.calibrated = true;
+        fields.halfLifeObservations = fields.windowObservations + 1;
+        document.Amend(fields);
+
+        ASSERT_TRUE(document.Offending().has_value());
+        EXPECT_EQ(document.Offending()->field, "calibration.half_life_observations");
+
+        fields.calibrated = false;
+        document.Amend(fields);
+
+        EXPECT_FALSE(document.Offending().has_value());
+    }
+
+    TEST(TestScenarioDocument, refuses_a_calibration_folder_that_names_nothing)
+    {
+        auto document = Edited();
+        auto fields = document.Fields();
+        fields.calibrated = true;
+        fields.priceHistories.clear();
+        document.Amend(fields);
+
+        ASSERT_TRUE(document.Offending().has_value());
+        EXPECT_EQ(Describing(*document.Offending()), "calibration.price_histories names nothing");
+    }
+}

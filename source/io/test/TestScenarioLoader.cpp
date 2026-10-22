@@ -55,6 +55,32 @@ namespace
         return { text + R"("underlyings": [)" + rows + "] }" };
     }
 
+    constexpr std::string_view calibrationBlock = R"("calibration": {
+        "price_histories": "../data/prices",
+        "window_observations": 252,
+        "volatility_estimator": "exponentially_weighted",
+        "half_life_observations": 60,
+        "drift_estimator": "least_squares",
+        "implied_premium_basis_points": 200
+    },
+    )";
+
+    std::vector<std::string> Calibrated(std::string_view block = calibrationBlock)
+    {
+        auto text = Published();
+        const auto at = text.find(R"("underlyings")");
+
+        return { text.insert(at, block) };
+    }
+
+    std::vector<std::string> CalibratedReplacing(std::string_view what, std::string_view with)
+    {
+        auto block = std::string(calibrationBlock);
+        const auto at = block.find(what);
+
+        return Calibrated(block.replace(at, what.size(), with));
+    }
+
     std::vector<std::string> Tickers(const Scenario& scenario)
     {
         std::vector<std::string> tickers;
@@ -256,5 +282,102 @@ namespace
         EXPECT_THAT(unpriced.Failure(), HasSubstr("implied_volatility_basis_points"));
         EXPECT_FALSE(unwithheld.Loaded().has_value());
         EXPECT_THAT(unwithheld.Failure(), HasSubstr("dividend_withholding_basis_points"));
+    }
+}
+
+namespace
+{
+    using fin::sim::DriftEstimator;
+    using fin::sim::VolatilityEstimator;
+
+    TEST(TestScenarioLoader, a_scenario_without_a_calibration_block_states_its_terms_outright)
+    {
+        const ScenarioLoader loader(PublishedScenario());
+
+        ASSERT_TRUE(loader.Loaded().has_value()) << loader.Failure();
+        EXPECT_FALSE(loader.Loaded()->calibration.has_value());
+    }
+
+    TEST(TestScenarioLoader, reads_a_calibration_block_and_writes_it_back_as_it_was)
+    {
+        const ScenarioLoader loader(Calibrated());
+
+        ASSERT_TRUE(loader.Loaded().has_value()) << loader.Failure();
+        ASSERT_TRUE(loader.Loaded()->calibration.has_value());
+        EXPECT_EQ(loader.Loaded()->calibration->priceHistories, "../data/prices");
+        EXPECT_EQ(loader.Loaded()->calibration->rule, (fin::sim::CalibrationRule{ 252, VolatilityEstimator::exponentiallyWeighted, 60, DriftEstimator::leastSquares, 200 }));
+
+        const ScenarioLoader again({ Formatted(*loader.Loaded()) });
+
+        ASSERT_TRUE(again.Loaded().has_value()) << again.Failure();
+        EXPECT_EQ(*again.Loaded(), *loader.Loaded());
+    }
+
+    TEST(TestScenarioLoader, reads_the_other_estimators_by_name)
+    {
+        const ScenarioLoader loader(CalibratedReplacing(R"("volatility_estimator": "exponentially_weighted",
+        "half_life_observations": 60,
+        "drift_estimator": "least_squares")",
+            R"("volatility_estimator": "historical",
+        "half_life_observations": 60,
+        "drift_estimator": "stated")"));
+
+        ASSERT_TRUE(loader.Loaded().has_value()) << loader.Failure();
+        EXPECT_EQ(loader.Loaded()->calibration->rule.volatility, VolatilityEstimator::historical);
+        EXPECT_EQ(loader.Loaded()->calibration->rule.drift, DriftEstimator::stated);
+    }
+
+    TEST(TestScenarioLoader, refuses_a_calibration_block_that_leaves_a_key_out)
+    {
+        const ScenarioLoader loader(CalibratedReplacing(R"("window_observations": 252,)", ""));
+
+        EXPECT_FALSE(loader.Loaded().has_value());
+        EXPECT_THAT(loader.Failure(), HasSubstr("window_observations"));
+    }
+
+    TEST(TestScenarioLoader, refuses_an_estimator_it_does_not_hold)
+    {
+        const ScenarioLoader loader(CalibratedReplacing(R"("exponentially_weighted")", R"("garch")"));
+
+        EXPECT_FALSE(loader.Loaded().has_value());
+        EXPECT_THAT(loader.Failure(), HasSubstr("garch"));
+    }
+
+    TEST(TestScenarioLoader, refuses_a_half_life_longer_than_the_window)
+    {
+        const ScenarioLoader loader(CalibratedReplacing(R"("half_life_observations": 60)", R"("half_life_observations": 253)"));
+
+        EXPECT_FALSE(loader.Loaded().has_value());
+        EXPECT_THAT(loader.Failure(), HasSubstr("half_life_observations"));
+    }
+
+    TEST(TestScenarioLoader, refuses_a_window_shorter_than_a_volatility_can_be_read_from)
+    {
+        const ScenarioLoader loader(CalibratedReplacing(R"("window_observations": 252)", R"("window_observations": 19)"));
+
+        EXPECT_FALSE(loader.Loaded().has_value());
+        EXPECT_THAT(loader.Failure(), HasSubstr("window_observations"));
+    }
+
+    TEST(TestScenarioLoader, refuses_a_folder_that_names_nothing)
+    {
+        const ScenarioLoader loader(CalibratedReplacing(R"("../data/prices")", R"("")"));
+
+        EXPECT_FALSE(loader.Loaded().has_value());
+        EXPECT_THAT(loader.Failure(), HasSubstr("price_histories"));
+    }
+
+    TEST(TestScenarioLoader, reads_the_published_backtest_scenario)
+    {
+        std::ifstream file(std::string(FIN_BS_CONFIG_DIRECTORY) + "/scenarios/benelux-backtest.json");
+        std::ostringstream contents;
+        contents << file.rdbuf();
+
+        const ScenarioLoader loader({ contents.str() });
+
+        ASSERT_TRUE(loader.Loaded().has_value()) << loader.Failure();
+        ASSERT_TRUE(loader.Loaded()->calibration.has_value());
+        EXPECT_EQ(loader.Loaded()->terms.cycles, 2);
+        EXPECT_EQ(loader.Loaded()->terms.underlyings.size(), 10u);
     }
 }

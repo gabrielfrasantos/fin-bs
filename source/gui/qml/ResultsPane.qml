@@ -50,7 +50,7 @@ ColumnLayout {
         Layout.margins: 8
         Layout.bottomMargin: 0
         visible: run.highlights.length === 0 && !run.running
-        text: qsTr("Project for one path on the stated drifts, simulate for the spread of outcomes, or search for the levers that do best under the risk limits.")
+        text: qsTr("Project for one path on the stated drifts, simulate for the spread of outcomes, search for the levers that do best under the risk limits, or backtest the book over the price histories.")
         wrapMode: Text.WordWrap
         opacity: 0.6
     }
@@ -64,6 +64,7 @@ ColumnLayout {
         TabButton { text: qsTr("Fan chart") }
         TabButton { text: qsTr("Cycles") }
         TabButton { text: qsTr("Ledger") }
+        TabButton { text: qsTr("Calibration") }
     }
 
     StackLayout {
@@ -74,7 +75,7 @@ ColumnLayout {
         TablePane {
             objectName: "summary"
             table: run.summary
-            emptyText: run.kind === "projection" && run.hasResult ? qsTr("A projection has no distribution; see the fan chart and the cycles.") : qsTr("Nothing to show until a simulation or a search has been run.")
+            emptyText: (run.kind === "projection" || run.kind === "backtest") && run.hasResult ? qsTr("A single path has no distribution; see the fan chart and the cycles.") : qsTr("Nothing to show until a simulation or a search has been run.")
         }
 
         FanChart {
@@ -99,6 +100,12 @@ ColumnLayout {
         TablePane {
             objectName: "ledger"
             table: run.ledger
+        }
+
+        TablePane {
+            objectName: "estimates"
+            table: run.calibration
+            emptyText: qsTr("The drift, volatility and implied volatility the rule estimated for each name at each cycle's opening. Nothing to show until a run with calibration switched on has been made.")
         }
     }
 

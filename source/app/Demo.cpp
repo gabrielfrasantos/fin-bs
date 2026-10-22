@@ -14,6 +14,7 @@ namespace fin::app
         constexpr int settle = 250;
         constexpr int cyclesTab = 2;
         constexpr int ledgerTab = 3;
+        constexpr int estimatesTab = 4;
         constexpr int fanTab = 1;
         constexpr int summaryTab = 0;
         constexpr int demoPaths = 400;
@@ -27,6 +28,7 @@ namespace fin::app
         QDir().mkpath(this->folder);
 
         const auto scenario = qEnvironmentVariableIsSet("FIN_BS_DEMO_SCENARIO") ? qEnvironmentVariable("FIN_BS_DEMO_SCENARIO") : workspace.Configurations() + "/scenarios/benelux.json";
+        const auto backtest = qEnvironmentVariableIsSet("FIN_BS_DEMO_BACKTEST") ? qEnvironmentVariable("FIN_BS_DEMO_BACKTEST") : workspace.Configurations() + "/scenarios/benelux-backtest.json";
 
         steps = {
             { "scenario", [this, scenario]
@@ -66,8 +68,21 @@ namespace fin::app
                     ShowTab(fanTab);
                 },
                 false },
-            { "underlyings", [this]
+            { "backtest-done", [this, backtest]
                 {
+                    this->workspace.Open(backtest);
+                    ShowTab(cyclesTab);
+                    this->workspace.Run()->backtest();
+                },
+                true },
+            { "backtest-estimates", [this]
+                {
+                    ShowTab(estimatesTab);
+                },
+                false },
+            { "underlyings", [this, scenario]
+                {
+                    this->workspace.Open(scenario);
                     Scroll(1.0);
                 },
                 false },

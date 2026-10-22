@@ -17,6 +17,7 @@ target_link_libraries(fin.present PUBLIC
 )
 
 target_sources(fin.present PRIVATE
+    CalibrationRow.hpp
     FanChartSeries.cpp
     FanChartSeries.hpp
     PriceHistory.cpp

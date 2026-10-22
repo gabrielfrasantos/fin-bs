@@ -20,6 +20,11 @@ namespace
         return Configurations() + "/scenarios/example.json";
     }
 
+    QString Backtest()
+    {
+        return Configurations() + "/scenarios/benelux-backtest.json";
+    }
+
     struct Shown
     {
         explicit Shown(const QString& scenario)
@@ -73,7 +78,7 @@ private slots:
 
         QVERIFY(shown.Window() != nullptr);
 
-        for (const auto* name : { "open", "save", "export", "project", "simulate", "search", "cancel", "status", "progress", "resultsTabs", "chart", "cycles", "ledger", "summary", "disclaimer", "underlyings", "add", "remove", "up", "down", "estimate" })
+        for (const auto* name : { "open", "save", "export", "project", "simulate", "search", "backtest", "cancel", "status", "progress", "resultsTabs", "chart", "cycles", "ledger", "summary", "estimates", "disclaimer", "underlyings", "add", "remove", "up", "down", "estimate", "calibration", "price_histories", "window_observations", "volatility_estimator", "half_life_observations", "drift_estimator", "implied_premium_basis_points" })
             QVERIFY2(shown.Named(name) != nullptr, name);
     }
 
@@ -117,6 +122,37 @@ private slots:
         QCOMPARE(shown.Enabled("cancel"), false);
         QCOMPARE(shown.Enabled("export"), true);
         QCOMPARE(shown.workspace.Run()->Cycles()->Rows(), 18);
+        QVERIFY(shown.Named("status")->property("text").toString().contains("Done"));
+    }
+
+    void offers_a_backtest_only_once_calibration_is_switched_on()
+    {
+        Shown shown(Example());
+
+        QCOMPARE(shown.Enabled("backtest"), false);
+        QCOMPARE(shown.Named("calibration")->property("checked").toBool(), false);
+        QCOMPARE(shown.Enabled("window_observations"), false);
+
+        shown.workspace.Scenario()->SetCalibrated(true);
+
+        QCOMPARE(shown.Enabled("backtest"), true);
+        QCOMPARE(shown.Named("calibration")->property("checked").toBool(), true);
+        QCOMPARE(shown.Enabled("window_observations"), true);
+        QCOMPARE(shown.Named("window_observations")->property("value").toInt(), 252);
+        QCOMPARE(shown.Named("volatility_estimator")->property("currentIndex").toInt(), 0);
+    }
+
+    void a_press_on_backtest_runs_the_histories_and_fills_the_estimates()
+    {
+        Shown shown(Backtest());
+
+        QCOMPARE(shown.Named("volatility_estimator")->property("currentIndex").toInt(), 1);
+        QVERIFY(QMetaObject::invokeMethod(shown.Named("backtest"), "clicked"));
+        QCOMPARE(shown.workspace.Run()->Running(), true);
+
+        shown.workspace.Run()->Await();
+
+        QCOMPARE(shown.workspace.Run()->Calibration()->Rows(), 20);
         QVERIFY(shown.Named("status")->property("text").toString().contains("Done"));
     }
 

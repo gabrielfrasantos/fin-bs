@@ -67,6 +67,12 @@ window a fitted drift will accept**. The fit is performed on a fixed-capacity sy
 each fit publishes its capacity - several decades of daily observations - and refuses a longer series
 rather than truncating it silently. See [decision D15](decisions.md).
 
+The simulation layer composes these estimators into a **calibration rule** (`sim/Calibration`):
+a window of closes strictly before a date, one of the two volatility estimators, the least-squares
+drift or none, and a premium over the realised volatility for pricing. The rule is a consumer of
+this layer, not part of it; what it may look at and why is in
+[calibration](../theory/calibration.md) and [decision D55](decisions.md).
+
 ### What the layer guarantees
 
 - **Every estimate carries its unit.** A volatility is a volatility and a drift is a rate; neither is

@@ -2,11 +2,13 @@
 
 #include "source/core/Date.hpp"
 #include "source/costs/FeeSchedule.hpp"
+#include "source/estimation/PriceSeries.hpp"
 #include "source/io/ScenarioLoader.hpp"
 #include "source/optimize/Recommendation.hpp"
 #include "source/optimize/RiskLimits.hpp"
 #include "source/optimize/StrategySetting.hpp"
 #include "source/optimize/StrikeSizingOptimizer.hpp"
+#include "source/present/CalibrationRow.hpp"
 #include "source/sim/OutcomeDistribution.hpp"
 #include "source/sim/RunObserver.hpp"
 #include "source/strategy/Book.hpp"
@@ -24,7 +26,8 @@ namespace fin::present
     {
         projection,
         simulation,
-        search
+        search,
+        backtest
     };
 
     enum class RunState : std::uint8_t
@@ -51,12 +54,19 @@ namespace fin::present
         optimize::DescentTerms descent;
     };
 
+    struct NamedHistory
+    {
+        std::string underlying;
+        estimation::PriceSeries history;
+    };
+
     struct RunInputs
     {
         io::Scenario scenario;
         costs::FeeSchedule fees;
         tax::Box3Parameters taxes;
         SearchTerms search;
+        std::vector<NamedHistory> histories;
     };
 
     struct RunOutcome
@@ -68,6 +78,7 @@ namespace fin::present
         strategy::CompoundingLedger ledger;
         std::optional<sim::OutcomeDistribution> distribution;
         std::optional<optimize::Recommendation> recommendation;
+        std::vector<CalibrationRow> calibration;
     };
 
     class RunController
@@ -91,6 +102,7 @@ namespace fin::present
         RunOutcome Project(const RunInputs& inputs);
         RunOutcome Simulate(const RunInputs& inputs);
         RunOutcome Search(const RunInputs& inputs);
+        RunOutcome Backtest(const RunInputs& inputs);
 
         std::atomic<RunState> state{ RunState::idle };
         std::atomic<std::int32_t> completed{ 0 };

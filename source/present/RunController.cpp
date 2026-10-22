@@ -3,7 +3,9 @@
 #include "source/optimize/StrategyObjective.hpp"
 #include "source/sim/BookMonteCarlo.hpp"
 #include "source/sim/BookScript.hpp"
+#include "source/sim/Calibration.hpp"
 #include "source/sim/GbmPathGenerator.hpp"
+#include "source/sim/HistoricalPath.hpp"
 #include "source/sim/Rng.hpp"
 #include "source/strategy/Portfolio.hpp"
 #include "source/strategy/ReinvestmentPolicy.hpp"
@@ -78,10 +80,52 @@ namespace fin::present
                 .rollDeltaLimit = scenario.triggers.deltaLimit };
         }
 
-        void RefuseUnless(bool held, const char* complaint)
+        void RefuseUnless(bool held, const std::string& complaint)
         {
             if (!held)
                 throw std::runtime_error(complaint);
+        }
+
+        const estimation::PriceSeries& HistoryOf(const RunInputs& inputs, const std::string& underlying)
+        {
+            const auto found = std::find_if(inputs.histories.begin(), inputs.histories.end(), [&underlying](const NamedHistory& named)
+                {
+                    return named.underlying == underlying;
+                });
+
+            RefuseUnless(found != inputs.histories.end(), "No price history was read for " + underlying);
+
+            return found->history;
+        }
+
+        sim::BookTerms TermsAt(const RunInputs& inputs, std::int32_t cycle, const core::Date& on, std::vector<CalibrationRow>& calibration)
+        {
+            auto terms = inputs.scenario.terms;
+
+            for (auto& underlying : terms.underlyings)
+            {
+                const sim::Calibrator calibrator(inputs.scenario.calibration->rule, HistoryOf(inputs, underlying.underlying), on, underlying);
+
+                RefuseUnless(calibrator.Estimate().has_value(), underlying.underlying + ": " + calibrator.Failure());
+
+                underlying = sim::Calibrated(underlying, *calibrator.Estimate());
+                calibration.push_back({ cycle, underlying.underlying, *calibrator.Estimate() });
+            }
+
+            return terms;
+        }
+
+        sim::BookTerms StartingTerms(const RunInputs& inputs, std::vector<CalibrationRow>& calibration)
+        {
+            if (!inputs.scenario.calibration.has_value())
+                return inputs.scenario.terms;
+
+            return TermsAt(inputs, 0, inputs.scenario.terms.start, calibration);
+        }
+
+        core::Date OpeningOf(const sim::BookTerms& terms, std::int32_t cycle)
+        {
+            return terms.start.AddDays(cycle * terms.daysPerCycle);
         }
 
         class WatchedObjective
@@ -142,6 +186,8 @@ namespace fin::present
                 result = Project(inputs);
             else if (kind == RunKind::simulation)
                 result = Simulate(inputs);
+            else if (kind == RunKind::backtest)
+                result = Backtest(inputs);
             else
                 result = Search(inputs);
 
@@ -193,19 +239,21 @@ namespace fin::present
 
     RunOutcome RunController::Project(const RunInputs& inputs)
     {
-        const sim::BookScript script(inputs.scenario.terms);
+        std::vector<CalibrationRow> calibration;
+        const auto terms = StartingTerms(inputs, calibration);
+        const sim::BookScript script(terms);
         const auto schedule = script.Schedule();
         sim::Rng rng(inputs.scenario.seed);
 
         std::vector<estimation::PriceSeries> paths;
-        paths.reserve(inputs.scenario.terms.underlyings.size());
+        paths.reserve(terms.underlyings.size());
 
-        for (const auto& generator : MarketsOf(inputs.scenario.terms))
+        for (const auto& generator : MarketsOf(terms))
             paths.push_back(generator.Along(schedule, rng));
 
         auto book = BookOf(inputs, script);
         std::vector<strategy::BookRow> rows;
-        std::vector<core::Date> boundaries{ inputs.scenario.terms.start };
+        std::vector<core::Date> boundaries{ terms.start };
         std::vector<core::Money> equity{ inputs.scenario.capital };
 
         for (std::int32_t cycle = 0; cycle != script.Cycles() && Continues(); ++cycle)
@@ -216,7 +264,7 @@ namespace fin::present
             for (const auto& row : book.Over(script.CycleFor(cycle, book, paths)))
                 rows.push_back(row);
 
-            boundaries.push_back(inputs.scenario.terms.start.AddDays((cycle + 1) * inputs.scenario.terms.daysPerCycle));
+            boundaries.push_back(OpeningOf(terms, cycle + 1));
             equity.push_back(rows.back().row.equity);
             Completed(cycle + 1, script.Cycles());
         }
@@ -227,23 +275,84 @@ namespace fin::present
             .rows = std::move(rows),
             .ledger = book.Ledger(),
             .distribution = std::nullopt,
-            .recommendation = std::nullopt };
+            .recommendation = std::nullopt,
+            .calibration = std::move(calibration) };
+    }
+
+    RunOutcome RunController::Backtest(const RunInputs& inputs)
+    {
+        RefuseUnless(inputs.scenario.calibration.has_value(), "A backtest needs a calibration block naming the price histories and the rule");
+
+        const auto& stated = inputs.scenario.terms;
+        const sim::BookScript outline(stated);
+        const auto schedule = outline.Schedule();
+
+        std::vector<estimation::PriceSeries> paths;
+        paths.reserve(stated.underlyings.size());
+
+        for (const auto& underlying : stated.underlyings)
+        {
+            const sim::HistoricalPath replay(HistoryOf(inputs, underlying.underlying), schedule);
+
+            RefuseUnless(replay.Path().has_value(), underlying.underlying + ": " + replay.Failure());
+
+            paths.push_back(*replay.Path());
+        }
+
+        std::vector<CalibrationRow> calibration;
+        std::vector<sim::BookScript> scripts;
+        scripts.reserve(static_cast<std::size_t>(stated.cycles));
+
+        for (std::int32_t cycle = 0; cycle != stated.cycles; ++cycle)
+            scripts.emplace_back(TermsAt(inputs, cycle, OpeningOf(stated, cycle), calibration));
+
+        auto book = BookOf(inputs, outline);
+        std::vector<strategy::BookRow> rows;
+        std::vector<core::Date> boundaries{ stated.start };
+        std::vector<core::Money> equity{ inputs.scenario.capital };
+
+        for (std::int32_t cycle = 0; cycle != stated.cycles && Continues(); ++cycle)
+        {
+            const auto& script = scripts[static_cast<std::size_t>(cycle)];
+
+            if (const auto assessed = script.AssessmentBefore(cycle, paths))
+                book.Assess(*assessed);
+
+            for (const auto& row : book.Over(script.CycleFor(cycle, book, paths)))
+                rows.push_back(row);
+
+            boundaries.push_back(OpeningOf(stated, cycle + 1));
+            equity.push_back(rows.back().row.equity);
+            Completed(cycle + 1, stated.cycles);
+        }
+
+        return { .kind = RunKind::backtest,
+            .boundaries = std::move(boundaries),
+            .equity = std::move(equity),
+            .rows = std::move(rows),
+            .ledger = book.Ledger(),
+            .distribution = std::nullopt,
+            .recommendation = std::nullopt,
+            .calibration = std::move(calibration) };
     }
 
     RunOutcome RunController::Simulate(const RunInputs& inputs)
     {
-        const sim::BookScript script(inputs.scenario.terms);
+        std::vector<CalibrationRow> calibration;
+        const auto terms = StartingTerms(inputs, calibration);
+        const sim::BookScript script(terms);
         const auto book = BookOf(inputs, script);
-        const sim::BookMonteCarlo simulation(book, script, MarketsOf(inputs.scenario.terms));
+        const sim::BookMonteCarlo simulation(book, script, MarketsOf(terms));
         sim::Rng rng(inputs.scenario.seed);
 
         return { .kind = RunKind::simulation,
-            .boundaries = CycleBoundaries(inputs.scenario.terms),
+            .boundaries = CycleBoundaries(terms),
             .equity = {},
             .rows = {},
             .ledger = book.Ledger(),
             .distribution = simulation.Over(inputs.scenario.paths, rng, *this),
-            .recommendation = std::nullopt };
+            .recommendation = std::nullopt,
+            .calibration = std::move(calibration) };
     }
 
     RunOutcome RunController::Search(const RunInputs& inputs)
@@ -252,12 +361,14 @@ namespace fin::present
         RefuseUnless(optimize::IsWellFormed(inputs.search.limits), "The search does not state limits that can be met");
         RefuseUnless(optimize::IsWellFormed(inputs.search.descent), "The search does not state a descent that can be made");
 
+        std::vector<CalibrationRow> calibration;
+        const auto terms = StartingTerms(inputs, calibration);
         const optimize::BookExperiment experiment{ .start = strategy::Portfolio::Funded(inputs.scenario.capital),
             .triggers = inputs.scenario.triggers,
             .maxCollateralPerNameBasisPoints = inputs.scenario.maxCollateralPerNameBasisPoints,
             .fees = costs::BrokerFees(inputs.fees),
             .taxes = tax::Box3TaxModel(inputs.taxes),
-            .terms = inputs.scenario.terms,
+            .terms = terms,
             .paths = inputs.scenario.paths,
             .seed = inputs.scenario.seed };
 
@@ -267,12 +378,13 @@ namespace fin::present
         const optimize::StrikeSizingOptimizer optimizer(inputs.search.descent);
 
         return { .kind = RunKind::search,
-            .boundaries = CycleBoundaries(inputs.scenario.terms),
+            .boundaries = CycleBoundaries(terms),
             .equity = {},
             .rows = {},
             .ledger = strategy::CompoundingLedger(io::CurrencyOf(inputs.scenario)),
             .distribution = std::nullopt,
-            .recommendation = optimize::Recommend(SettingOf(inputs.scenario), objective, optimizer) };
+            .recommendation = optimize::Recommend(SettingOf(inputs.scenario), objective, optimizer),
+            .calibration = std::move(calibration) };
     }
 
     std::vector<core::Date> CycleBoundaries(const sim::BookTerms& terms)

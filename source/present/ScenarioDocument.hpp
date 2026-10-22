@@ -3,6 +3,7 @@
 #include "source/core/Date.hpp"
 #include "source/core/Money.hpp"
 #include "source/io/ScenarioLoader.hpp"
+#include "source/sim/Calibration.hpp"
 #include "source/sim/WheelScript.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -48,6 +49,13 @@ namespace fin::present
         std::int32_t seed;
         std::string taxConfiguration;
         std::string brokerConfiguration;
+        bool calibrated;
+        std::string priceHistories;
+        std::int32_t windowObservations;
+        sim::VolatilityEstimator volatilityEstimator;
+        std::int32_t halfLifeObservations;
+        sim::DriftEstimator driftEstimator;
+        std::int32_t impliedPremiumBasisPoints;
 
         bool operator==(const ScenarioFields& other) const = default;
     };

@@ -16,6 +16,10 @@ namespace fin::present
         constexpr std::int32_t mostPaths = 1000000;
         constexpr std::int32_t nonLeapYear = 2001;
         constexpr std::int32_t mostCents = std::numeric_limits<std::int32_t>::max();
+        constexpr std::int32_t usualWindowObservations = 252;
+        constexpr std::int32_t usualHalfLifeObservations = 60;
+        constexpr std::int32_t usualImpliedPremiumBasisPoints = 200;
+        constexpr const char* usualPriceHistories = "../data/prices";
 
         double FractionOf(std::int32_t basisPoints)
         {
@@ -68,7 +72,29 @@ namespace fin::present
                 .paths = 256,
                 .seed = 1,
                 .taxConfiguration = "tax/nl_2025.json",
-                .brokerConfiguration = "broker/degiro.json" };
+                .brokerConfiguration = "broker/degiro.json",
+                .calibrated = false,
+                .priceHistories = usualPriceHistories,
+                .windowObservations = usualWindowObservations,
+                .volatilityEstimator = sim::VolatilityEstimator::historical,
+                .halfLifeObservations = usualHalfLifeObservations,
+                .driftEstimator = sim::DriftEstimator::leastSquares,
+                .impliedPremiumBasisPoints = usualImpliedPremiumBasisPoints };
+        }
+
+        io::Calibration CalibrationOr(const io::Scenario& scenario)
+        {
+            if (scenario.calibration.has_value())
+                return *scenario.calibration;
+
+            const auto starting = Starting();
+
+            return io::Calibration{ .priceHistories = starting.priceHistories,
+                .rule = sim::CalibrationRule{ .windowObservations = starting.windowObservations,
+                    .volatility = starting.volatilityEstimator,
+                    .halfLifeObservations = starting.halfLifeObservations,
+                    .drift = starting.driftEstimator,
+                    .impliedPremiumBasisPoints = starting.impliedPremiumBasisPoints } };
         }
     }
 
@@ -95,7 +121,14 @@ namespace fin::present
               .paths = scenario.paths,
               .seed = static_cast<std::int32_t>(scenario.seed),
               .taxConfiguration = scenario.taxConfiguration,
-              .brokerConfiguration = scenario.brokerConfiguration })
+              .brokerConfiguration = scenario.brokerConfiguration,
+              .calibrated = scenario.calibration.has_value(),
+              .priceHistories = CalibrationOr(scenario).priceHistories,
+              .windowObservations = CalibrationOr(scenario).rule.windowObservations,
+              .volatilityEstimator = CalibrationOr(scenario).rule.volatility,
+              .halfLifeObservations = CalibrationOr(scenario).rule.halfLifeObservations,
+              .driftEstimator = CalibrationOr(scenario).rule.drift,
+              .impliedPremiumBasisPoints = CalibrationOr(scenario).rule.impliedPremiumBasisPoints })
     {
         underlyings.reserve(scenario.terms.underlyings.size());
 
@@ -212,6 +245,21 @@ namespace fin::present
         if (auto fault = Unnamed("broker_configuration", fields.brokerConfiguration))
             return fault;
 
+        if (fields.calibrated)
+        {
+            if (auto fault = Unnamed("calibration.price_histories", fields.priceHistories))
+                return fault;
+
+            if (auto fault = Outside("calibration.window_observations", fields.windowObservations, sim::leastWindowObservations, sim::mostWindowObservations))
+                return fault;
+
+            if (auto fault = Outside("calibration.half_life_observations", fields.halfLifeObservations, 1, fields.windowObservations))
+                return fault;
+
+            if (auto fault = Outside("calibration.implied_premium_basis_points", fields.impliedPremiumBasisPoints, -basisPointsPerUnit, basisPointsPerUnit))
+                return fault;
+        }
+
         if (underlyings.empty())
             return FieldFault{ "underlyings", "names no underlying to wheel" };
 
@@ -291,7 +339,14 @@ namespace fin::present
             .paths = fields.paths,
             .seed = static_cast<std::uint64_t>(fields.seed),
             .taxConfiguration = fields.taxConfiguration,
-            .brokerConfiguration = fields.brokerConfiguration };
+            .brokerConfiguration = fields.brokerConfiguration,
+            .calibration = fields.calibrated ? std::optional<io::Calibration>(io::Calibration{ .priceHistories = fields.priceHistories,
+                                                   .rule = sim::CalibrationRule{ .windowObservations = fields.windowObservations,
+                                                       .volatility = fields.volatilityEstimator,
+                                                       .halfLifeObservations = fields.halfLifeObservations,
+                                                       .drift = fields.driftEstimator,
+                                                       .impliedPremiumBasisPoints = fields.impliedPremiumBasisPoints } })
+                                             : std::nullopt };
     }
 
     bool IsWellFormed(const ScenarioDocument& document)

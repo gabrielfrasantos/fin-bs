@@ -78,3 +78,16 @@ namespace
         EXPECT_THAT(table.rows, Contains(ElementsAre("paths that borrowed", "0.00%")));
     }
 }
+
+namespace
+{
+    TEST(TestResultTable, writes_an_estimate_per_cycle_and_underlying_in_percent)
+    {
+        const std::vector<fin::present::CalibrationRow> rows{ { 0, "ACME", fin::sim::CalibratedEstimate{ .windowEnd = fin::core::Date::FromYearMonthDay(2026, 1, 2), .observations = 252, .drift = fin::core::Rate::FromContinuous(0.08), .volatility = fin::core::Volatility::FromAnnualized(0.25), .impliedVolatility = fin::core::Volatility::FromAnnualized(0.27) } } };
+        const auto table = fin::present::CalibrationTable(rows);
+
+        EXPECT_THAT(table.headings, ::testing::ElementsAre("cycle", "underlying", "window end", "closes", "drift", "volatility", "implied"));
+        ASSERT_EQ(table.rows.size(), 1u);
+        EXPECT_THAT(table.rows[0], ::testing::ElementsAre("1", "ACME", "2026-01-02", "252", "8.00%", "25.00%", "27.00%"));
+    }
+}
